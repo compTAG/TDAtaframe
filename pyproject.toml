@@ -5,16 +5,10 @@ version = "0.1.0"
 description = "A package to handle shape-matching for meshes"
 authors = [{name="Jack Ruder", email="jackruder@montana.edu"}]
 dependencies = [
-    "torchwect @ file:///home/jack/compTaG/bubbles/wectdb/wheels/torchwect-0.1.0-py3-none-any.whl",
-    "polars[async]>=1.5.0"
+    # "torchwect @ file:///home/jack/compTaG/bubbles/wectdb/wheels/torchwect-0.1.0-py3-none-any.whl",
+    "polars[async]>=1.5.0",
+    # "torch>=2.4.0",
 ]
-
-[tool.poetry]
-name = "patina"
-version = "0.1.0"
-description = "A package to handle shape-matching for meshes"
-authors = ["Jack Ruder <jackruder@montana.edu>"]
-
 
 [build-system]
 requires = ["maturin>=1.7,<2.0", "polars>=0.42"]
@@ -24,6 +18,11 @@ build-backend = "maturin"
 module_name = "patina._internal"
 python-source = "patina-python-lib"
 
+[tool.poetry]
+name = "patina"
+version = "0.1.0"
+description = "A package to handle shape-matching for meshes"
+authors = ["Jack Ruder <jackruder@montana.edu>"]
 
 [tool.poetry.group.dev.dependencies]
 maturin = ">=1.7.0,<2"
@@ -43,18 +42,18 @@ torch = { version = "^2.4.0", optional = true }
 optional = true
 
 [tool.poetry.group.cpu.dependencies]
-torch = { version = "^2.4.0", source = "torch_cpu", markers = "extra=='cpu' and extra!='gpu'" }
+torch = { version = "^2.4.0", source = "torch_cpu", markers = "extra=='cpu' and extra!='cuda'" }
 
-[tool.poetry.group.gpu]
+[tool.poetry.group.cuda]
 optional = true
 
-[tool.poetry.group.gpu.dependencies]
-torch = { version = "^2.4.0", source = "torch_cuda", markers = "extra=='gpu' and extra!='cpu'" }
+[tool.poetry.group.cuda.dependencies]
+torch = { version = "^2.4.0", source = "torch_cuda", markers = "extra=='cuda' and extra!='cpu'" }
 
 
 [tool.poetry.extras]
 cpu = ["torch"]
-gpu = ["torch"]
+cuda = ["torch"]
 
 [[tool.poetry.source]]
 name = "torch_cpu"
