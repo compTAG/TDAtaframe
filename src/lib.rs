@@ -2,6 +2,7 @@ mod complex;
 mod complex_interpolation;
 pub mod complex_mapping;
 mod utils;
+mod wect;
 mod wect_interface;
 
 pub mod expressions;
