@@ -1,0 +1,159 @@
+[project]
+name = "patina"
+requires-python = ">=3.12"
+version = "0.1.0"
+description = "A package to handle shape-matching for meshes"
+authors = [{name="Jack Ruder", email="jackruder@montana.edu"}]
+dependencies = [
+    "torchwect @ file:///home/jack/compTaG/bubbles/wectdb/wheels/torchwect-0.1.0-py3-none-any.whl",
+    "polars[async]>=1.5.0"
+]
+
+[tool.poetry]
+name = "patina"
+version = "0.1.0"
+description = "A package to handle shape-matching for meshes"
+authors = ["Jack Ruder <jackruder@montana.edu>"]
+
+
+[build-system]
+requires = ["maturin>=1.7,<2.0", "polars>=0.42"]
+build-backend = "maturin"
+
+[tool.maturin]
+module_name = "patina._internal"
+python-source = "patina-python-lib"
+
+
+[tool.poetry.group.dev.dependencies]
+maturin = ">=1.7.0,<2"
+ruff = '>=0.5,<0.6'
+pytest = '>=8.3'
+sphinx = '>=7.0.0'
+sphinx-autodoc-typehints = '>=2.2'
+sphinx-rtd-theme = '>=2.0'
+
+# two optional groups, cpu and cuda
+[tool.poetry.dependencies]
+python = "^3.12"
+polars = {version = "^1.5.0", extras = ["async"]}
+torch = { version = "^2.4.0", optional = true }
+
+[tool.poetry.group.cpu]
+optional = true
+
+[tool.poetry.group.cpu.dependencies]
+torch = { version = "^2.4.0", source = "torch_cpu", markers = "extra=='cpu' and extra!='gpu'" }
+
+[tool.poetry.group.gpu]
+optional = true
+
+[tool.poetry.group.gpu.dependencies]
+torch = { version = "^2.4.0", source = "torch_cuda", markers = "extra=='gpu' and extra!='cpu'" }
+
+
+[tool.poetry.extras]
+cpu = ["torch"]
+gpu = ["torch"]
+
+[[tool.poetry.source]]
+name = "torch_cpu"
+url = "https://download.pytorch.org/whl/cpu"
+priority = "explicit"
+
+[[tool.poetry.source]]
+name = "torch_cuda"
+url = "https://download.pytorch.org/whl/cu124"
+priority = "explicit"
+
+[tool.pytest.ini_options]
+addopts = ["-v", "--color=yes"]
+testpaths = ["./tests"]
+
+[tool.ruff]
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+]
+
+# Same as Black.
+line-length = 88
+indent-width = 4
+target-version = "py312"
+fix = true
+
+[tool.ruff.lint]
+# Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`)  codes by default.
+select = [
+    "E2", "E3", "E4", "E7", "E9", 
+    "F", 
+    "W291", "W292", 
+    "I", "D", "N", "ANN", "B", "COM",
+    "RET",
+    "SIM",
+    "TD006", "TD004", "TD007", "TD001",
+    "NPY",
+    "RUF",
+     ]
+ignore = ["D206", "D300", "COM812", "COM819", "RET504"]
+preview = true
+
+# Allow fix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+force-sort-within-sections = true
+length-sort = true
+
+
+[tool.ruff.format]
+# Like Black, use double quotes for strings.
+quote-style = "double"
+
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+
+# Like Black, automatically detect the appropriate line ending.
+line-ending = "lf"
+
+docstring-code-format = true
+docstring-code-line-length = 30
+
+preview = true
+

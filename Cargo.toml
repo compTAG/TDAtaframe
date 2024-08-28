@@ -1,0 +1,27 @@
+[package]
+name = "patina"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "patina"
+crate-type = ["cdylib"]
+
+[dependencies]
+polars = { version = "^0.41", features=["nightly", "performant", "ndarray", "polars-ops", "dtype-array", "dtype-struct"]}
+polars-arrow = { version = "^0.41"}
+pyo3 = { version = "^0.21", features = ["extension-module", "abi3-py312"] }
+pyo3-polars = { version = "0.15.0", features = ["derive"] }
+serde = { version = "*", features = ["derive"]}
+num-traits = { version = "*" }
+rand = { version = "*" }
+ndarray = {version = "0.15.6"}
+tch = {git = "https://github.com/LaurentMazare/tch-rs", rev="a4e9362e4acbbde54ab9503ab9e37a10835e7547"}
+faer = {version = "^0.19.0", features=["rayon"]}
+faer-ext = {version = "0.2.0", features=["ndarray"]}
+
+
+[profile.dev.package.faer]
+opt-level = 3
+
+[features]
