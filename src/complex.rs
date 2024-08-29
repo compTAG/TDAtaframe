@@ -9,6 +9,55 @@ use std::boxed::Box;
 use std::rc::Rc;
 use tch::{Device, IValue, Tensor};
 
+trait SimplexList {
+
+}
+
+trait WeightList {
+
+}
+
+
+trait Complex<V, S> 
+where 
+    V: SimplexList, S: SimplexList
+{
+    fn simplices(&self, dim: usize) -> impl SimplexList;
+
+    fn new(vertices: V) -> Self;
+    fn with_dims(vertices: V, dim: usize) -> Self;
+    fn from_simplices(vertices: V, simplices: Vec<S>) -> Self;
+
+    // Return the top dimension of this simplicial complex.
+    fn len(&self) -> usize;
+
+    // Get the simplices of a given dimension greater than 0.
+    fn get_simplices_dim(&self, dim: usize) -> Option<S>;
+    fn set_simplices_dim(&mut self, simplices: S, dim: usize);
+
+    fn get_vertices(&self) -> V;
+    fn set_dim(&mut self, simplices: impl SimplexList);
+}
+
+trait Weighted<V,S,W>: Complex<V,S>  
+where V: SimplexList, S: SimplexList, W: WeightList
+{
+    fn simplices(&self, dim: usize) -> (impl SimplexList, impl WeightList);
+
+    fn from_simplices(vertices: V, simplices: Vec<S>, weights: Vec<W>) -> Self;
+    fn get_weights(&self, dim: usize) -> Vec<Option<&W>>;
+    fn get_weights_dim(&self, dim: usize) -> Option<&W>;
+    fn set_weights_dim(&mut self, weights: W, dim: usize);
+
+    fn get_pair_dim(&self, dim: usize) -> Option<(&S, &W)>;
+    fn set_dim(&mut self, simplices: impl SimplexList, weights: impl WeightList, dim: usize);
+
+    fn get_vertices(&self) -> (&V, &Option<W>) ;
+    fn set_vertex_weights(&mut self, weights: W);
+}
+
+
+
 pub struct WeightedComplex<V, S, W> {
     vertices: V,
     simplices: Vec<Option<S>>,
@@ -232,6 +281,8 @@ impl WeightedTensorComplex {
         }
         out
     }
+
+    pub fn wect(&self)
 
     pub fn from(complex: WeightedArrayComplex, device: Device) -> Self {
         let dim = complex.get_dim();
