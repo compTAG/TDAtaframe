@@ -150,3 +150,28 @@ pub fn maps_svd(inputs: &[Series], kwargs: MapsSvdArgs) -> PolarsResult<Series> 
     // call impl here?
     Ok(out.into_series())
 }
+
+struct PremappedWectArgs {
+    embedded_dimension: i64,
+    num_heights: i64,
+    num_directions: i64,
+    provided_simplices: Vec<usize>, // the dimensions of simplices provied, in order // TODO: struct
+    provided_weights: Vec<usize>,   // the dimensions of weights provided, in order
+}
+pub fn premapped_wect(inputs: &[Series], kwargs: PremappedWectArgs) -> PolarsResult<Series> {
+    let n_simp = kwargs.provided_simplices.len();
+    let n_weight = kwargs.provided_weights.len();
+
+    // maybe make this Opt<chunked>
+    let simplices: Vec<&ChunkedArray<ListType>> = inputs[0..n_simp]
+        .iter()
+        .map(|x| x.list().unwrap()) // TODO: get the ? in there
+        .collect();
+
+    let weights: Vec<&ChunkedArray<ListType>> = inputs[n_simp..n_weight]
+        .iter()
+        .map(|x| x.list().unwrap())
+        .collect();
+
+    // TODO build iterator from each element of simplices and each element of weights
+}
