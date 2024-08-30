@@ -1,6 +1,7 @@
 use ndarray::Array2;
 use num_traits::float::Float;
 use std::collections::HashSet;
+use std::ops::Index;
 
 use crate::complex_interpolation::interpolate_simplices_down;
 use crate::complex_mapping::compute_maps_svd;
@@ -325,13 +326,21 @@ fn test_new_cplex() {
 
 // pub type WeightedArrayComplex = WeightedSimplicialComplex<Option<Array2<f32>>, Option<Array2<usize>>, Option<Vec<f32>>>;
 // pub type WeightedTensorComplex = WeightedSimplicialComplex<Rc<Box<Tensor>>, Rc<Box<Tensor>>, Rc<Box<Tensor>>>;
-type WeightedArrayComplex = WeightedSimplicialComplex<Array2<f32>, Array2<usize>, Vec<f32>>;
-type WeightedOptComplex =
-    WeightedSimplicialComplex<Option<Array2<f32>>, Option<Array2<usize>>, Option<Vec<f32>>>;
+pub type WeightedArrayComplex = WeightedSimplicialComplex<Array2<f32>, Array2<usize>, Vec<f32>>;
+pub type WeightedOptF32Complex =
+    WeightedSimplicialComplex<Array2<f32>, Option<Array2<usize>>, Option<Vec<f32>>>;
 
 impl<P: Float, F: Float>
     WeightedSimplicialComplex<Array2<P>, Option<Array2<usize>>, Option<Vec<F>>>
 {
+    fn missing_simplex_dim(&self, dim: usize) -> bool {
+        self.structure.simplices[dim - 1].is_none()
+    }
+
+    fn missing_weight_dim(&self, dim: usize) -> bool {
+        self.weights[dim].is_none()
+    }
+
     // Interpolate the k-dimensional faces and weights of a complex from
     // a set of k+1 dimensional simplices and weights
     fn interpolate_down(&mut self, k: usize) {
@@ -365,13 +374,16 @@ impl<P: Float, F: Float>
         // gather missing simplex dimensions into a hash map of index -> hashmap<simplex_vector, (float, float)>
         let mut missing_simplices: HashSet<usize> = HashSet::new();
 
+        if self.missing_weight_dim(0) {
+            missing_simplices.insert(0);
+        }
         // for each dimension, check if the simplices are missing
-        (0..=self.size()).for_each(|dim| {
-            if self.get_simplices_dim(dim).is_none() {
+        (1..=self.size()).for_each(|dim| {
+            if self.missing_simplex_dim(dim) {
                 missing_simplices.insert(dim);
             }
 
-            if self.get_weights_dim(dim).is_none() && !missing_simplices.contains(&dim) {
+            if self.missing_weight_dim(dim) && !missing_simplices.contains(&dim) {
                 missing_simplices.insert(dim);
             }
         });
@@ -401,7 +413,7 @@ impl<P: Float, F: Float>
 }
 
 type BTensor = Rc<Box<Tensor>>;
-type WeightedTensorComplex = WeightedSimplicialComplex<BTensor, BTensor, BTensor>;
+pub type WeightedTensorComplex = WeightedSimplicialComplex<BTensor, BTensor, BTensor>;
 impl WeightedSimplicialComplex<BTensor, BTensor, BTensor> {
     pub fn zip_into_ival(&self) -> Vec<IValue> {
         let mut out: Vec<IValue> = Vec::with_capacity(self.weights.len());
@@ -421,27 +433,25 @@ impl WeightedSimplicialComplex<BTensor, BTensor, BTensor> {
         out
     }
 
-    // pub fn wect(&self)
-
-    pub fn from(complex: WeightedArrayComplex, device: Device) -> Self {
+    pub fn from(complex: WeightedOptF32Complex, device: Device) -> Self {
         let dim = complex.size();
 
         let (vertices, vertex_weights) = complex.get_vertices_weights();
         let vertices_t = Rc::new(Box::new(array2_to_tensor(vertices, device)));
 
-        let weights_silce: &[f32] = &vertex_weights.as_ref();
+        let weights_silce: &[f32] = &vertex_weights.as_ref().unwrap();
 
         let mut weights = vec![Rc::new(Box::new(Tensor::from_slice(weights_silce)))];
         let mut simplices: Vec<Rc<Box<Tensor>>> = Vec::with_capacity(dim);
 
         (1..=dim).for_each(|k| {
             let (s, w) = complex.get_pair_dim(k);
-            let casted_simplices = s.mapv(|x| x as i64);
+            let casted_simplices = s.as_ref().unwrap().mapv(|x| x as i64);
 
             let simplices_t = array2_to_tensor(&casted_simplices, device); // TODO: do we
                                                                            // manually cast usize to u32 or u64?
             simplices.push(Rc::new(Box::new(simplices_t)));
-            weights.push(Rc::new(Box::new(Tensor::from_slice(&w))));
+            weights.push(Rc::new(Box::new(Tensor::from_slice(w.as_ref().unwrap()))));
         });
 
         Self::from_simplices(vertices_t, simplices, weights)

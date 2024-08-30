@@ -1,9 +1,9 @@
 mod complex;
 mod complex_interpolation;
 pub mod complex_mapping;
+mod tensorwect;
 mod utils;
-mod wect;
-mod wect_interface;
+// mod wect_interface;
 
 pub mod expressions;
 use pyo3::types::{PyModule, PyModuleMethods};
