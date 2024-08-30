@@ -14,6 +14,55 @@ use rand::seq::SliceRandom;
 
 use rand::thread_rng;
 
+use crate::complex::{Complex, Weighted, WeightedOptComplex};
+
+pub trait PreMappable {
+    type Output;
+    type Point;
+    fn premap(
+        &self,
+        align_dim: usize,
+        subsample_ratio: f32,
+        subsample_min: usize,
+        subsample_max: usize,
+        eps: Option<Self::Point>,
+        copies: bool,
+    ) -> Vec<Self::Output>;
+}
+
+impl<P> PreMappable for WeightedOptComplex<P, P>
+// TODO: P, W
+where
+    P: Float + FromPrimitive + RealField + SimpleEntity + ScalarOperand,
+    f64: From<P>,
+    usize: AsPrimitive<P>,
+{
+    type Output = Array2<P>;
+    type Point = P;
+
+    fn premap(
+        &self,
+        align_dim: usize,
+        subsample_ratio: f32,
+        subsample_min: usize,
+        subsample_max: usize,
+        eps: Option<P>,
+        copies: bool,
+    ) -> Vec<Self::Output> {
+        let (simplices, weights) = self.get_pair_dim(align_dim);
+        compute_maps_svd(
+            &self.get_vertices().view(),
+            &simplices.as_ref().unwrap().view(),
+            weights.as_ref().unwrap(),
+            subsample_ratio,
+            subsample_min,
+            subsample_max,
+            eps,
+            copies,
+        )
+    }
+}
+
 pub fn compute_barycenters<F: Float + FromPrimitive + Debug>(
     vertices: &ArrayView2<F>,
     simplices: &ArrayView2<usize>,

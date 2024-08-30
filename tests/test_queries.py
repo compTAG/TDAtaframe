@@ -5,6 +5,7 @@ import pprint
 
 
 from patina.alignment import get_barycenters, get_maps_svd
+from patina.wect import get_premapped_wects
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -79,3 +80,46 @@ def test_bary() -> None:
     pprint.pprint(bdf.to_numpy(), width=200)
     barycenters = bdf.to_dict()["barycenters"].to_numpy()
     assert np.allclose(barycenters[0], target_bary)
+
+
+def test_wect():
+    vertices, triangles, normals = build_octahedron(True, 2.0, 1.0, 3.0)
+    vertices2, triangles2, normals2 = build_octahedron(True, 1.0, 1.0, 1.0)
+    df = pl.DataFrame(
+        {
+            "ID": ["octahedron", "octahedron2"],
+            "vertices": [vertices, vertices2],
+            "triangles": [triangles, triangles2],
+            "normals": [normals, normals2],
+        },
+        schema={
+            "ID": pl.String,
+            "vertices": pl.List(pl.Array(pl.Float32, 3)),
+            "triangles": pl.List(pl.Array(pl.UInt32, 3)),
+            "normals": pl.List(pl.Float32),
+        },
+    )
+
+    wdf = (
+        get_premapped_wects(
+            df.lazy(),
+            vertices="vertices",
+            triangles="triangles",
+            normals="normals",
+            wect_params=dict(directions=20, steps=25),
+            rot_params=dict(
+                heur_fix=True,
+                eps=0.01,
+                subsample_ratio=1.0,
+                subsample_min=10,
+                subsample_max=100,
+                copies=False,
+            ),
+            wname="wects",
+        )
+        .select("ID", "vertices", "triangles", "wects")
+        .collect()
+    )
+    pprint.pprint(wdf.to_numpy(), width=200)
+    wects = wdf.to_dict()["wects"].to_numpy()
+    pprint.pprint(wects, width=200)

@@ -1,10 +1,6 @@
-use ndarray::Array2;
+use ndarray::{Array2, ArrayView2};
 use num_traits::float::Float;
-use std::collections::HashSet;
-use std::ops::Index;
 
-use crate::complex_interpolation::interpolate_simplices_down;
-use crate::complex_mapping::compute_maps_svd;
 use crate::utils::array2_to_tensor;
 use std::boxed::Box;
 use std::rc::Rc;
@@ -30,6 +26,32 @@ impl<T> SimplexList for Array2<T> {
 }
 
 impl SimplexList for Option<Array2<usize>> {
+    fn shape(&self) -> Vec<usize> {
+        self.as_ref().unwrap().shape().to_vec()
+    }
+    fn len(&self) -> usize {
+        self.as_ref().unwrap().shape()[0]
+    }
+
+    fn dim(&self) -> usize {
+        self.as_ref().unwrap().shape()[1]
+    }
+}
+
+impl<T> SimplexList for ArrayView2<'_, T> {
+    fn shape(&self) -> Vec<usize> {
+        self.shape().to_vec()
+    }
+    fn len(&self) -> usize {
+        self.shape()[0]
+    }
+
+    fn dim(&self) -> usize {
+        self.shape()[1]
+    }
+}
+
+impl SimplexList for Option<ArrayView2<'_, usize>> {
     fn shape(&self) -> Vec<usize> {
         self.as_ref().unwrap().shape().to_vec()
     }
@@ -201,14 +223,14 @@ pub struct WeightedSimplicialComplex<V, S, W> {
 }
 
 impl<V, S, W> WeightedSimplicialComplex<V, S, W> {
-    fn new(vertices: V, weights: W) -> Self {
+    pub fn new(vertices: V, weights: W) -> Self {
         Self {
             structure: SimplicialComplex::new(vertices),
             weights: vec![weights],
         }
     }
 
-    fn with_dims(vertices: V, dim: usize, weights: W) -> Self {
+    pub fn with_dims(vertices: V, dim: usize, weights: W) -> Self {
         let mut new = Self {
             structure: SimplicialComplex::with_dims(vertices, dim),
             weights: Vec::with_capacity(dim + 1),
@@ -217,7 +239,7 @@ impl<V, S, W> WeightedSimplicialComplex<V, S, W> {
         new
     }
 
-    fn from_simplices(vertices: V, simplices: Vec<S>, weights: Vec<W>) -> Self {
+    pub fn from_simplices(vertices: V, simplices: Vec<S>, weights: Vec<W>) -> Self {
         Self {
             structure: SimplicialComplex::from_simplices(vertices, simplices),
             weights,
@@ -307,8 +329,6 @@ where
     }
 }
 
-// SimplicialComplex<Vec<Vec<f32>>, Vec<Vec<usize>>> {}
-
 fn test_new_cplex() {
     println!("Hello, world!");
     let vertices: Vec<Vec<f32>> = vec![
@@ -324,93 +344,30 @@ fn test_new_cplex() {
         WeightedSimplicialComplex::from_simplices(vertices, simplices, weights);
 }
 
-// pub type WeightedArrayComplex = WeightedSimplicialComplex<Option<Array2<f32>>, Option<Array2<usize>>, Option<Vec<f32>>>;
-// pub type WeightedTensorComplex = WeightedSimplicialComplex<Rc<Box<Tensor>>, Rc<Box<Tensor>>, Rc<Box<Tensor>>>;
 pub type WeightedArrayComplex = WeightedSimplicialComplex<Array2<f32>, Array2<usize>, Vec<f32>>;
-pub type WeightedOptF32Complex =
-    WeightedSimplicialComplex<Array2<f32>, Option<Array2<usize>>, Option<Vec<f32>>>;
+pub type WeightedOptComplex<P, W> =
+    WeightedSimplicialComplex<Array2<P>, Option<Array2<usize>>, Option<Vec<W>>>;
 
-impl<P: Float, F: Float>
-    WeightedSimplicialComplex<Array2<P>, Option<Array2<usize>>, Option<Vec<F>>>
-{
-    fn missing_simplex_dim(&self, dim: usize) -> bool {
+impl<P: Float, W: Float> WeightedOptComplex<P, W> {
+    pub fn missing_simplex_dim(&self, dim: usize) -> bool {
         self.structure.simplices[dim - 1].is_none()
     }
 
-    fn missing_weight_dim(&self, dim: usize) -> bool {
+    pub fn missing_weight_dim(&self, dim: usize) -> bool {
         self.weights[dim].is_none()
     }
-
-    // Interpolate the k-dimensional faces and weights of a complex from
-    // a set of k+1 dimensional simplices and weights
-    fn interpolate_down(&mut self, k: usize) {
-        let simplices: &Array2<usize> = &self.get_simplices_dim(k + 1).as_ref().unwrap();
-        let weights: &Vec<F> = &self.get_weights_dim(k + 1).as_ref().unwrap();
-        let (interp_simplices, interp_weights) = interpolate_simplices_down(&simplices, &weights);
-        if k > 0 {
-            self.set_dim(Some(interp_simplices), Some(interp_weights), k);
-        } else if k == 0 {
-            // any degenerate vertices will have 0 weight
-            let mut vertex_weights = vec![F::zero(); self.len(0)];
-            for i in 0..interp_simplices.shape()[0] {
-                let vertex_as_index = interp_simplices[(i, 0)];
-                vertex_weights[vertex_as_index] = interp_weights[i];
-            }
-
-            self.set_vertex_weights(Some(vertex_weights));
-
-            if interp_simplices.shape()[0] != self.len(0) {
-                println!("Warning: Extraneous vertices detected in complex");
-            }
-        } else {
-            panic!("Can't interpolate simplices for dimension k={}", k);
-        }
-    }
-
-    // Interpolate missing values in the complex.
-    // Missing simplices are interpolated from the simplices of the next higher dimension.
-    // Missing weights are interpolated from the weights of the next higher dimension.
-    pub fn interpolate_missing_down(&mut self) {
-        // gather missing simplex dimensions into a hash map of index -> hashmap<simplex_vector, (float, float)>
-        let mut missing_simplices: HashSet<usize> = HashSet::new();
-
-        if self.missing_weight_dim(0) {
-            missing_simplices.insert(0);
-        }
-        // for each dimension, check if the simplices are missing
-        (1..=self.size()).for_each(|dim| {
-            if self.missing_simplex_dim(dim) {
-                missing_simplices.insert(dim);
-            }
-
-            if self.missing_weight_dim(dim) && !missing_simplices.contains(&dim) {
-                missing_simplices.insert(dim);
-            }
-        });
-
-        // iterate backwards thorough the missing simplices and weights and
-        // interpolate the missing simplices and weights from the next higher dimension
-        let mut missing_dims: Vec<usize> = missing_simplices.into_iter().map(|x| x).collect();
-        missing_dims.sort();
-        missing_dims.into_iter().rev().for_each(|k| {
-            if k == self.size() {
-                panic!("Can't interpolate missing values for dimension k={}: the k+1 dimension simplices and weights are missing", k);
-            }
-            self.interpolate_down(k);
-        });
-    }
-
-    // TODO: implement this
-    // pub fn map_complex(&mut self) {
-    //     let top_dim = self.get_dim();
-    //     compute_maps_svd(
-    //         self.get_vertices(),
-    //         self.get_simplices_dim(top_dim).unwrap().as_ref().unwrap(),
-    //         self.get_weights_dim(top_dim).unwrap().as_ref().unwrap(),
-    //     );
-    // }
-    //
 }
+
+// TODO: implement this
+// pub fn map_complex(&mut self) {
+//     let top_dim = self.get_dim();
+//     compute_maps_svd(
+//         self.get_vertices(),
+//         self.get_simplices_dim(top_dim).unwrap().as_ref().unwrap(),
+//         self.get_weights_dim(top_dim).unwrap().as_ref().unwrap(),
+//     );
+// }
+//
 
 type BTensor = Rc<Box<Tensor>>;
 pub type WeightedTensorComplex = WeightedSimplicialComplex<BTensor, BTensor, BTensor>;
@@ -433,13 +390,17 @@ impl WeightedSimplicialComplex<BTensor, BTensor, BTensor> {
         out
     }
 
-    pub fn from(complex: WeightedOptF32Complex, device: Device) -> Self {
+    pub fn from<V, W>(complex: &WeightedOptComplex<V, W>, device: Device) -> Self
+    where
+        V: tch::kind::Element,
+        W: tch::kind::Element,
+    {
         let dim = complex.size();
 
         let (vertices, vertex_weights) = complex.get_vertices_weights();
         let vertices_t = Rc::new(Box::new(array2_to_tensor(vertices, device)));
 
-        let weights_silce: &[f32] = &vertex_weights.as_ref().unwrap();
+        let weights_silce: &[W] = &vertex_weights.as_ref().unwrap();
 
         let mut weights = vec![Rc::new(Box::new(Tensor::from_slice(weights_silce)))];
         let mut simplices: Vec<Rc<Box<Tensor>>> = Vec::with_capacity(dim);

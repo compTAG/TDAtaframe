@@ -1,10 +1,17 @@
-use crate::complex::{Complex, Weighted, WeightedTensorComplex};
-use tch::{kind, Device, Kind, Tensor};
+use crate::{
+    complex::{Complex, Weighted, WeightedOptComplex, WeightedTensorComplex},
+    utils::array2_to_tensor,
+};
+use ndarray::Array2;
+use tch::{
+    kind::{self, Element},
+    Device, Kind, Tensor,
+};
 
 #[derive(Debug)]
 pub struct WECTParams {
-    dirs: Tensor,
-    num_heights: Tensor,
+    pub dirs: Tensor,
+    pub num_heights: Tensor,
 }
 
 impl WECTParams {
@@ -24,33 +31,43 @@ impl WECTParams {
 }
 
 pub trait TensorWect {
-    fn wect(&self, params: WECTParams) -> Tensor;
+    type RotMat;
+    fn pre_rot_wect(&self, params: &WECTParams, tx: Self::RotMat) -> Tensor;
+    fn wect(&self, params: &WECTParams) -> Tensor;
 }
 
 impl TensorWect for WeightedTensorComplex {
-    fn wect(&self, params: WECTParams) -> Tensor {
-        let (vertex_coords, vertex_weights) = self.get_vertices_weights();
-        let v_indices = vertex_indices(&params, &vertex_coords);
-        let v_graphs = sparsify_index_tensor(&params, &v_indices, Kind::Float);
-        let vertex_weights = vertex_weights.view([-1, 1, 1]);
-        let weighted_v_graphs = vertex_weights * v_graphs;
-        let mut contributions = weighted_v_graphs.internal_sparse_sum_dim(vec![0]);
+    type RotMat = Tensor;
+    fn wect(&self, params: &WECTParams) -> Tensor {
+        wect(self, self.get_vertices().shallow_clone(), params)
+    }
 
-        for dim in 1..self.size() {
-            let simplex_tensor = &self.get_simplices_dim(dim);
-            let v_pair_indices = v_indices.index_select(0, &simplex_tensor);
-            let simplex_indices = v_pair_indices.amax(&[1], false);
-            let simplex_graphs = sparsify_index_tensor(&params, &simplex_indices, Kind::Float);
-            let simplex_weights = self.get_weights_dim(dim).view([-1, 1, 1]);
-            let weighted_simplex_graphs = simplex_weights * simplex_graphs;
-            let simplex_contributions = weighted_simplex_graphs.internal_sparse_sum_dim(vec![0]);
-            contributions += simplex_contributions * (-1.0f64).powi(dim as i32);
-        }
+    fn pre_rot_wect(&self, params: &WECTParams, tx: Self::RotMat) -> Tensor {
+        let vertex_coords = self.get_vertices();
+        let rotated_vertex_coords = vertex_coords.matmul(&tx.transpose(0, 1));
+        wect(self, rotated_vertex_coords, params)
+    }
+}
 
-        let wect = contributions
-            .to_dense(Kind::Float, false)
-            .cumsum(1, Kind::Float);
-        wect
+impl<P, W> TensorWect for WeightedOptComplex<P, W>
+where
+    P: Element,
+    W: Element,
+{
+    type RotMat = Array2<f64>;
+    fn wect(&self, params: &WECTParams) -> Tensor {
+        // TODO: make sure no missing dimensions
+        let device = tch::Device::cuda_if_available();
+        let tensor_complex = WeightedTensorComplex::from(self, device);
+        tensor_complex.wect(params)
+    }
+
+    // You probably don't want to call this over multiple TX, since each call
+    // recreates a tensor complex
+    fn pre_rot_wect(&self, params: &WECTParams, tx: Self::RotMat) -> Tensor {
+        let device = tch::Device::cuda_if_available();
+        let tensor_complex = WeightedTensorComplex::from(self, device);
+        tensor_complex.pre_rot_wect(params, array2_to_tensor(&tx, device))
     }
 }
 
@@ -91,6 +108,30 @@ fn sparsify_index_tensor(params: &WECTParams, index_tensor: &Tensor, weight_dtyp
     )
 }
 
+fn wect(complex: &WeightedTensorComplex, vertex_coords: Tensor, params: &WECTParams) -> Tensor {
+    let vertex_weights = complex.get_weights_dim(0);
+    let v_indices = vertex_indices(&params, &vertex_coords);
+    let v_graphs = sparsify_index_tensor(&params, &v_indices, Kind::Float);
+    let vertex_weights = vertex_weights.view([-1, 1, 1]);
+    let weighted_v_graphs = vertex_weights * v_graphs;
+    let mut contributions = weighted_v_graphs.internal_sparse_sum_dim(vec![0]);
+
+    for dim in 1..complex.size() {
+        let simplex_tensor = &complex.get_simplices_dim(dim);
+        let v_pair_indices = v_indices.index_select(0, &simplex_tensor);
+        let simplex_indices = v_pair_indices.amax(&[1], false);
+        let simplex_graphs = sparsify_index_tensor(&params, &simplex_indices, Kind::Float);
+        let simplex_weights = complex.get_weights_dim(dim).view([-1, 1, 1]);
+        let weighted_simplex_graphs = simplex_weights * simplex_graphs;
+        let simplex_contributions = weighted_simplex_graphs.internal_sparse_sum_dim(vec![0]);
+        contributions += simplex_contributions * (-1.0f64).powi(dim as i32);
+    }
+
+    let wect = contributions
+        .to_dense(Kind::Float, false)
+        .cumsum(1, Kind::Float);
+    wect
+}
 fn sample2D(num_dirs: i64, device: Device) -> Tensor {
     let t = Tensor::linspace(0.0, 6.283185, num_dirs, (Kind::Float, device));
     Tensor::stack(&[t.cos(), t.sin()], 1)
