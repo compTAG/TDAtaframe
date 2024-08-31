@@ -85,7 +85,7 @@ fn get_ordered_faces(simplex: &Vec<usize>) -> Vec<Vec<usize>> {
     for i in 0..(k + 1) {
         let mut face = simplex.clone();
         face.remove(i);
-        faces[i] = face;
+        faces.push(face);
     }
     faces
 }
@@ -99,6 +99,7 @@ fn interpolate_simplices_down<F: Float>(
     weights: &Vec<F>,
 ) -> (Array2<usize>, Vec<F>) {
     // A map from simplex to (cum_weights, num_weights)
+    let n_simplices = simplices.shape()[0]; // the number of simplices
     let coface_dim = simplices.shape()[1] - 1; // the dimension of the simplices
     let face_dim = coface_dim - 1; // the dimension of the faces
 
@@ -129,8 +130,9 @@ fn interpolate_simplices_down<F: Float>(
         face_list_flattened.append(&mut face);
     });
 
+    let num_faces = face_list_flattened.len() / (face_dim + 1);
+
     let faces =
-        Array2::<usize>::from_shape_vec((coface_dim + 1, face_dim + 1), face_list_flattened)
-            .unwrap();
+        Array2::<usize>::from_shape_vec((num_faces, face_dim + 1), face_list_flattened).unwrap();
     (faces, face_weights)
 }

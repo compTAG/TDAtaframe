@@ -146,7 +146,7 @@ def get_premapped_wects(
 
     vdim = 3  # TODO: unhardcode
 
-    return df.with_columns(
+    return df.lazy().with_columns(
         get_pred_mapped_wect_expr(
             vdim,
             vertices,

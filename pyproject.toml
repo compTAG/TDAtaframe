@@ -6,7 +6,7 @@ description = "A package to handle shape-matching for meshes"
 authors = [{name="Jack Ruder", email="jackruder@montana.edu"}]
 dependencies = [
     # "torchwect @ file:///home/jack/compTaG/bubbles/wectdb/wheels/torchwect-0.1.0-py3-none-any.whl",
-    "polars[async]>=1.5.0",
+    "polars>=1.5.0",
     # "torch>=2.4.0",
 ]
 

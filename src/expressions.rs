@@ -5,15 +5,12 @@ use crate::complex_mapping::{compute_barycenters, compute_maps_svd};
 use crate::tensorwect::{TensorWect, WECTParams};
 use crate::utils::{array2_to_tensor, tensor_to_array2};
 use ndarray::{Array2, ArrayView2};
-use polars::error::PolarsResult;
-use polars_core::utils::rayon::iter::MultiZip;
+use polars_core::utils::arrow::array::{Array, PrimitiveArray};
 use serde::Deserialize;
-
-use polars_arrow::array::{Array, PrimitiveArray};
 
 use pyo3_polars::derive::polars_expr;
 
-use polars::prelude::*;
+use pyo3_polars::export::polars_core::prelude::*;
 
 fn same_output_type(input_fields: &[Field]) -> PolarsResult<Field> {
     let field = &input_fields[0];
@@ -198,19 +195,25 @@ fn impl_pmw3d(
 
             let device = wp.dirs.device();
             let tensor_complex = WeightedTensorComplex::from(&complex, device);
-            let wects: Vec<Array2<f32>> = pre_rots
-                .iter()
-                .map(|x| {
-                    let tx = array2_to_tensor(x, device);
-                    let wect = tensor_complex.pre_rot_wect(wp, tx);
-                    let wect_arr = tensor_to_array2(
-                        &wect,
-                        kwargs.num_directions as usize, // i64 to usize conversion
-                        kwargs.num_heights as usize,
-                    );
-                    wect_arr
-                })
-                .collect();
+            // let wects: Vec<Array2<f32>> = pre_rots
+            //     .iter()
+            //     .map(|x| {
+            //         let tx = array2_to_tensor(x, device);
+            //         let wect = tensor_complex.pre_rot_wect(wp, tx);
+            //         let wect_arr = tensor_to_array2(
+            //             &wect,
+            //             kwargs.num_directions as usize, // i64 to usize conversion
+            //             kwargs.num_heights as usize,
+            //         );
+            //         wect_arr
+            //     })
+            //     .collect();
+            //
+            let wects: Vec<Array2<f32>> = vec![tensor_to_array2(
+                &tensor_complex.wect(&wp),
+                kwargs.num_directions as usize,
+                kwargs.num_heights as usize,
+            )];
 
             let flattened_wects: Vec<f32> = wects // TODO: unhardcode
                 .into_iter()

@@ -1,15 +1,10 @@
-extern crate ndarray as nd;
-
 use std::fmt::Debug;
 
-use faer::linalg::matmul::matmul;
-use faer::solvers::{Svd, ThinSvd};
-use faer::{
-    col, row, ComplexField, Conjugate, Entity, Mat, MatRef, Parallelism, RealField, SimpleEntity,
-};
+use faer::solvers::ThinSvd;
+use faer::{col, row, ComplexField, Mat, MatRef, RealField, SimpleEntity};
 use faer_ext::{IntoFaer, IntoNdarray};
-use ndarray::{array, Array1, Array2, ArrayView2, ScalarOperand};
-use num_traits::{AsPrimitive, Float, FromPrimitive, One, ToPrimitive, Zero};
+use ndarray::{array, Array2, ArrayView2, Axis, ScalarOperand};
+use num_traits::{AsPrimitive, Float, FromPrimitive, ToPrimitive};
 use rand::seq::SliceRandom;
 
 use rand::thread_rng;
@@ -67,12 +62,12 @@ pub fn compute_barycenters<F: Float + FromPrimitive + Debug>(
     vertices: &ArrayView2<F>,
     simplices: &ArrayView2<usize>,
 ) -> Array2<F> {
-    let mut barycenters = nd::Array2::<F>::zeros((simplices.shape()[0], vertices.shape()[1]));
+    let mut barycenters = Array2::<F>::zeros((simplices.shape()[0], vertices.shape()[1]));
     for (i, simplex) in simplices.outer_iter().enumerate() {
         let indices: Vec<usize> = simplex.to_vec().into_iter().map(|i| i as usize).collect();
         let barycenter = vertices
-            .select(nd::Axis(0), &indices)
-            .mean_axis(nd::Axis(0))
+            .select(Axis(0), &indices)
+            .mean_axis(Axis(0))
             .unwrap();
         barycenters.row_mut(i).assign(&barycenter);
     }
@@ -102,7 +97,7 @@ where
     let mut indices: Vec<usize> = (0..n_points).collect();
     indices.shuffle(&mut thread_rng());
     let subsample_indices = &indices[0..n_subsample];
-    let subsample_points = points.select(nd::Axis(0), subsample_indices);
+    let subsample_points = points.select(Axis(0), subsample_indices);
     let submat: MatRef<F> = IntoFaer::into_faer(subsample_points.view());
     submat.to_owned()
 }

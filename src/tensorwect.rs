@@ -1,6 +1,6 @@
 use crate::{
     complex::{Complex, Weighted, WeightedOptComplex, WeightedTensorComplex},
-    utils::array2_to_tensor,
+    utils::{array2_to_tensor, tensor_to_array2},
 };
 use ndarray::Array2;
 use tch::{
@@ -11,7 +11,7 @@ use tch::{
 #[derive(Debug)]
 pub struct WECTParams {
     pub dirs: Tensor,
-    pub num_heights: Tensor,
+    pub num_heights: i64,
 }
 
 impl WECTParams {
@@ -20,7 +20,7 @@ impl WECTParams {
         let height_tensor = Tensor::scalar_tensor(num_heights, (kind::Kind::Int64, device));
         WECTParams {
             dirs: dirs.set_requires_grad(false),
-            num_heights: height_tensor.set_requires_grad(false),
+            num_heights, //height_tensor.set_requires_grad(false),
         }
     }
 
@@ -93,16 +93,20 @@ fn sparsify_index_tensor(params: &WECTParams, index_tensor: &Tensor, weight_dtyp
     let i = grid[0].flatten(0, -1);
     let j = grid[1].flatten(0, -1);
     let k = index_tensor.flatten(0, -1);
-    let indices = Tensor::stack(&[&i, &j, &k], 1);
-    let values = Tensor::ones(&[i.size()[0]], (weight_dtype, device));
+    let indices = Tensor::stack(&[&i, &j, &k], 1).transpose(0, 1);
+
+    let values = Tensor::ones(i.size(), (weight_dtype, device));
+
+    let shape = vec![
+        n,
+        params.dirs.size()[0],
+        params.num_heights, //.int64_value(&[0]),
+    ]; // TODO: check if this is correct
+
     Tensor::sparse_coo_tensor_indices_size(
-        &indices.transpose(0, 1), // TODO: check if this is correct (i think so, indices is 2D)
+        &indices, // TODO: check if this is correct (i think so, indices is 2D)
         &values,
-        &[
-            n,
-            params.dirs.size()[0],
-            params.num_heights.int64_value(&[0]),
-        ], // TODO: check if this is correct
+        &shape,
         (Kind::Float, device),
         false,
     )
@@ -116,10 +120,28 @@ fn wect(complex: &WeightedTensorComplex, vertex_coords: Tensor, params: &WECTPar
     let weighted_v_graphs = vertex_weights * v_graphs;
     let mut contributions = weighted_v_graphs.internal_sparse_sum_dim(vec![0]);
 
-    for dim in 1..complex.size() {
+    for dim in 1..=complex.size() {
         let simplex_tensor = &complex.get_simplices_dim(dim);
-        let v_pair_indices = v_indices.index_select(0, &simplex_tensor);
+
+        let v_pair_indices = Tensor::empty(
+            // HACK: loop through and assign instead of advanced
+            // indexing
+            vec![
+                simplex_tensor.size()[0],
+                simplex_tensor.size()[1],
+                v_indices.size()[1],
+            ],
+            (Kind::Int64, simplex_tensor.device()),
+        );
+
+        for i in 0..simplex_tensor.size()[0] {
+            let indices = simplex_tensor.get(i);
+            let indexed_values = v_indices.index_select(0, &indices);
+            v_pair_indices.get(i).copy_(&indexed_values);
+        }
+
         let simplex_indices = v_pair_indices.amax(&[1], false);
+
         let simplex_graphs = sparsify_index_tensor(&params, &simplex_indices, Kind::Float);
         let simplex_weights = complex.get_weights_dim(dim).view([-1, 1, 1]);
         let weighted_simplex_graphs = simplex_weights * simplex_graphs;
@@ -127,9 +149,7 @@ fn wect(complex: &WeightedTensorComplex, vertex_coords: Tensor, params: &WECTPar
         contributions += simplex_contributions * (-1.0f64).powi(dim as i32);
     }
 
-    let wect = contributions
-        .to_dense(Kind::Float, false)
-        .cumsum(1, Kind::Float);
+    let wect = contributions.to_dense(None, false).cumsum(1, Kind::Float);
     wect
 }
 fn sample2D(num_dirs: i64, device: Device) -> Tensor {
