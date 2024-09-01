@@ -10,13 +10,16 @@ This whole pipeline can be called using compute_db_entry().
 
 import polars as pl
 from ..utils import flatten_matrix, unflatten_to_matrix
-from .register import barycenters, maps_svd
+from .register import barycenters as _barycenters, maps_svd as _maps_svd
+from ..params import MapArgs
 
 
-def get_barycenters(
+def with_barycenters(
     df: pl.LazyFrame,
     v: str,
     t: str,
+    vdim: int,
+    sdim: int,
     b: str,
 ) -> pl.LazyFrame:
     """Compute the barycenters of all meshes.
@@ -34,27 +37,54 @@ def get_barycenters(
         A pl.LazyFrame including a column with the barycenters.
     """
     return df.lazy().with_columns(
-        unflatten_to_matrix(
-            barycenters(
-                flatten_matrix(pl.col(v)),
-                flatten_matrix(pl.col(t)),
-            ),
-            3,  # TODO: unhardcode stride using schema
-        ).alias(b)
+        _barycenters(
+            flatten_matrix(pl.col(v)),
+            flatten_matrix(pl.col(t)),
+            embedded_dimension=vdim,
+            simplex_dimension=sdim,
+        ),
     )
 
 
-def get_maps_svd_expr(vdim, vcol, scol, ncol, eps, rot_params):  # noqa
-    maps = maps_svd(
-        flatten_matrix(pl.col(vcol)),
-        flatten_matrix(pl.col(scol)),
-        flatten_matrix(pl.col(ncol)),
-        subsample_ratio=rot_params["subsample_ratio"],
-        subsample_min=rot_params["subsample_min"],
-        subsample_max=rot_params["subsample_max"],
-        eps=eps,
-        copies=rot_params["copies"],
-    )  # output column of (n * d * d) flattened array of flattened matrices
+def maps_svd(
+    v: str, s: str, w: str, vdim: int, ma: MapArgs, flat_in: bool = True
+) -> pl.Expr:
+    """Compute the maps for the given vertices, normals, and triangles.
+
+    Args:
+        v: The name of the column containing the vertices.
+        s: The name of the column containing the simplices.
+        w: The name of the column containing the weights.
+        vdim: The dimension of the vertices.
+        ma: The arguments for the map computation.
+        flat_in: if the inputs are already flattened.
+    """
+    if not flat_in:
+        maps = _maps_svd(
+            flatten_matrix(pl.col(v)),
+            flatten_matrix(pl.col(s)),
+            flatten_matrix(pl.col(w)),
+            embedded_dimension=vdim,
+            simplex_dimension=ma.align_dimension,
+            subsample_ratio=ma.subsample_ratio,
+            subsample_min=ma.subsample_min,
+            subsample_max=ma.subsample_max,
+            eps=ma.eps,
+            copies=ma.copies,
+        )  # output column of (n * d * d) flattened array of flattened matrices
+    else:
+        maps = _maps_svd(
+            pl.col(v),
+            pl.col(s),
+            pl.col(w),
+            embedded_dimension=vdim,
+            simplex_dimension=ma.align_dimension,
+            subsample_ratio=ma.subsample_ratio,
+            subsample_min=ma.subsample_min,
+            subsample_max=ma.subsample_max,
+            eps=ma.eps,
+            copies=ma.copies,
+        )
 
     # Reshape the maps
     maps = unflatten_to_matrix(
@@ -64,42 +94,26 @@ def get_maps_svd_expr(vdim, vcol, scol, ncol, eps, rot_params):  # noqa
     return maps
 
 
-def get_maps_svd(
+def with_maps_svd(
     df: pl.LazyFrame,
-    rot_params: dict,
+    vertices: str,
+    simplices: str,
+    weights: str,
+    vdim: int,
+    ma: MapArgs,
     txname: str,
 ) -> pl.LazyFrame:
     """Compute the mappings of each mesh in the dataframe, according to the given parameters.
 
-    This maps the input shape so that it is axis aligned,
-    where X is aligned with the largest principal component, Y the second, and
-    Z the third. To fix possible rotations around these axes, specify heur_fix
-    or copies in rot_params. See get_heur_fixes and get_copies for details.
-
     Args:
-        df: A lazyframe or dataframe with vertices, normals, and
-            triangles columns. There should be one object per row.
-        rot_params: A dict specifying the behavior, refer to implementation
-            for needed fields.
+        df: The dataframe containing the meshes.
+        vertices: the name of the column containing the vertices, of type list[array[_,3]].
         txname: the name of the output column for the computed mappings.
 
     Returns:
         A lazyframe with the computed mappings.
     """
 
-    eps = None
-    if rot_params["heur_fix"]:
-        eps = rot_params["eps"]
-
-    vdim = 3  # TODO: unhardcode
-
     return df.with_columns(
-        get_maps_svd_expr(
-            vdim,
-            "vertices",
-            "triangles",
-            "normals",
-            eps,
-            rot_params,
-        ).alias(txname)
+        maps_svd(vertices, simplices, weights, vdim, ma).alias(txname)
     )

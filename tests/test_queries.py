@@ -4,8 +4,9 @@ import os
 import pprint
 
 
-from patina.alignment import get_barycenters, get_maps_svd
-from patina.wect import get_premapped_3D_triangle_wects, get_premapped_wects
+from patina.params import MapArgs, WectArgs, WeightedComplexInfo
+from patina.alignment import with_barycenters, with_maps_svd
+from patina.wect import with_premapped_wects, with_wects
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -45,30 +46,6 @@ def build_octahedron(weighted: bool, x: float = 1.0, y: float = 1.0, z: float = 
 
     weights = non_uniform if weighted else uniform
     return vertices, faces, weights
-
-
-# TETRAHEDRON_VERTICES = np.array([
-#     [0, 0, 1],
-#     [2 * np.sqrt(2) / 3, 0, -1 / 3],
-#     [-np.sqrt(2) / 3, np.sqrt(2), -1 / 3],
-#     [-np.sqrt(2) / 3, -np.sqrt(2), -1 / 3],
-# ])
-#
-# TETRAHEDRON_EDGES = np.array([
-#     [0, 1],
-#     [0, 2],
-#     [0, 3],
-#     [1, 2],
-#     [1, 3],
-#     [2, 3],
-# ])
-#
-# TETRAHEDRON_TRIANGLES = np.array([
-#     [0, 1, 2],
-#     [0, 2, 3],
-#     [0, 3, 1],
-#     [1, 2, 3],
-# ])
 
 
 def build_tetrahedron():
@@ -114,13 +91,8 @@ def test_bary() -> None:
     df = pl.DataFrame(
         {
             "ID": ["octahedron"],
-            "vertices": [vertices],
-            "triangles": [triangles],
-        },
-        schema={
-            "ID": pl.String,
-            "vertices": pl.List(pl.Array(pl.Float32, 3)),
-            "triangles": pl.List(pl.Array(pl.UInt32, 3)),
+            "vertices": [vertices.flatten()],
+            "triangles": [triangles.flatten()],
         },
     )
 
@@ -136,11 +108,13 @@ def test_bary() -> None:
     ])
 
     bdf = (
-        get_barycenters(
+        with_barycenters(
             df.lazy(),
             v="vertices",
             t="triangles",
             b="barycenters",
+            vdim=3,
+            sdim=2,
         )
         .select("ID", "vertices", "triangles", "barycenters")
         .collect()
@@ -148,50 +122,6 @@ def test_bary() -> None:
     pprint.pprint(bdf.to_numpy(), width=200)
     barycenters = bdf.to_dict()["barycenters"].to_numpy()
     assert np.allclose(barycenters[0], target_bary)
-
-
-def test_wect_3D_tri():
-    vertices, triangles, normals = build_octahedron(True, 2.0, 1.0, 3.0)
-    vertices2, _, triangles2, normals2 = build_tetrahedron()
-    df = pl.DataFrame(
-        {
-            "ID": ["octahedron", "tetrahedron"],
-            "vertices": [vertices, vertices2],
-            "triangles": [triangles, triangles2],
-            "normals": [normals, normals2],
-        },
-        schema={
-            "ID": pl.String,
-            "vertices": pl.List(pl.Array(pl.Float32, 3)),
-            "triangles": pl.List(pl.Array(pl.UInt32, 3)),
-            "normals": pl.List(pl.Float32),
-        },
-    )
-    print(df)
-
-    wdf = get_premapped_3D_triangle_wects(
-        df.lazy(),
-        vertices="vertices",
-        triangles="triangles",
-        normals="normals",
-        wect_params=dict(directions=25, steps=20),
-        rot_params=dict(
-            heur_fix=True,
-            eps=0.01,
-            subsample_ratio=1.0,
-            subsample_min=10,
-            subsample_max=100,
-            copies=False,
-        ),
-        wname="wects",
-    ).select("ID", "vertices", "triangles", "wects")
-    print(wdf.explain(streaming=True))
-    wdf = wdf.collect()
-
-    wects = wdf.to_dict()["wects"].to_numpy()
-    for wect in wects:
-        wect = wect.reshape(-1, 25, 20)
-        print(wect)
 
 
 def test_wect():
@@ -209,37 +139,35 @@ def test_wect():
             },
         },
     )
-    #     schema={
-    #         "ID": pl.String,
-    #         "simplices": pl.Struct({
-    #             "vertices": pl.List(pl.Float32),
-    #             "triangles": pl.List(pl.UInt32),
-    #         }),
-    #         "weights": pl.Struct({"trinormals": pl.List(pl.Float32)}),
-    #     },
-    # )
-    print(df)
 
     provided_simplices = [2]
     provided_weights = [2]
 
-    print(df)
-
-    wdf = get_premapped_wects(
-        df.lazy(),
-        simplices="simplices",
-        weights="weights",
+    wci = WeightedComplexInfo(
+        complex_name="simplices",
+        weights_name="weights",
+        vertices_dimension=3,
         provided_simplices=provided_simplices,
         provided_weights=provided_weights,
-        wect_params=dict(directions=25, steps=20),
-        rot_params=dict(
-            heur_fix=True,
-            eps=0.01,
-            subsample_ratio=1.0,
-            subsample_min=10,
-            subsample_max=100,
-            copies=False,
-        ),
+    )
+
+    wa = WectArgs(num_directions=25, num_filt_steps=20)
+    ma = MapArgs(
+        subsample_ratio=1.0,
+        subsample_min=10,
+        subsample_max=100,
+        eps=0.01,
+        copies=False,
+        align_dimension=2,
+    )
+
+    print(df)
+
+    wdf = with_premapped_wects(
+        df.lazy(),
+        wci,
+        ma=ma,
+        wa=wa,
         wname="wects",
     ).select("ID", "simplices", "weights", "wects")
     print(wdf.explain(streaming=True))
