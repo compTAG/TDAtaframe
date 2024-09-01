@@ -6,9 +6,8 @@ use crate::complex_mapping::PreMappable;
 use crate::complex_mapping::{compute_barycenters, compute_maps_svd};
 use crate::io::{iter_complex, iter_vert_simp, iter_vert_simp_weight};
 use crate::tensorwect::{TensorWect, WECTParams};
-use crate::utils::{array2_to_tensor, tensor_to_array2};
+use crate::utils::{array2_to_tensor, tensor_to_array2, tensor_to_flat};
 use ndarray::{Array2, ArrayView2};
-use polars_core::utils::arrow::array::{Array, PrimitiveArray};
 use serde::Deserialize;
 
 use pyo3_polars::derive::polars_expr;
@@ -26,7 +25,7 @@ struct BarycentersArgs {
     simplex_dimension: usize,
 }
 
-#[polars_expr(output_type_func=same_output_type)] // TODO: Make generic
+#[polars_expr(output_type_func=same_output_type)]
 pub fn barycenters(inputs: &[Series], kwargs: BarycentersArgs) -> PolarsResult<Series> {
     iter_vert_simp(
         &inputs[0],
@@ -83,7 +82,7 @@ struct PremappedWectArgs {
     embedded_dimension: i64,
     num_heights: i64,
     num_directions: i64,
-    provided_simplices: Vec<usize>, // the dimensions of simplices provied, in order, starting with 1 // TODO: struct
+    provided_simplices: Vec<usize>, // the dimensions of simplices provied, in order, starting with 1
     provided_weights: Vec<usize>,   // the dimensions of weights provided, in order
     align_dimension: usize,
     subsample_ratio: f32,
@@ -131,26 +130,17 @@ pub fn premapped_wect(inputs: &[Series], kwargs: PremappedWectArgs) -> PolarsRes
 
         let device = wp.dirs.device();
         let tensor_complex = WeightedTensorComplex::from(&complex, device);
-        let wects: Vec<Array2<f32>> = pre_rots
+        pre_rots // apply the wect for each rotation, and flatten the output
             .iter()
             .map(|x| {
                 let tx = array2_to_tensor(x, device);
                 let wect = tensor_complex.pre_rot_wect(&wp, tx);
-                let wect_arr = tensor_to_array2(
-                    &wect,
-                    kwargs.num_directions as usize, // i64 to usize conversion
-                    kwargs.num_heights as usize,
-                );
-                wect_arr
+                tensor_to_flat(&wect)
             })
-            .collect();
-
-        let flattened_wects: Vec<f32> = wects // TODO: unhardcode
+            .collect::<Vec<Vec<_>>>()
             .into_iter()
-            .map(|x| x.into_raw_vec())
             .flatten()
-            .collect();
-        flattened_wects
+            .collect::<Vec<_>>()
     };
 
     iter_complex(&inputs[0], &inputs[1], vdim, psimps, pweights, closure)
@@ -161,7 +151,7 @@ struct WectArgs {
     embedded_dimension: i64,
     num_heights: i64,
     num_directions: i64,
-    provided_simplices: Vec<usize>, // the dimensions of simplices provied, in order, starting with 1 // TODO: struct
+    provided_simplices: Vec<usize>, // the dimensions of simplices provied, in order, starting with 1
     provided_weights: Vec<usize>,   // the dimensions of weights provided, in order
 }
 
@@ -186,18 +176,8 @@ pub fn wect(inputs: &[Series], kwargs: WectArgs) -> PolarsResult<Series> {
         let device = wp.dirs.device();
         let tensor_complex = WeightedTensorComplex::from(&complex, device);
 
-        let wects: Vec<Array2<f32>> = vec![tensor_to_array2(
-            &tensor_complex.wect(&wp),
-            kwargs.num_directions as usize,
-            kwargs.num_heights as usize,
-        )];
-
-        let flattened_wects: Vec<f32> = wects // TODO: unhardcode
-            .into_iter()
-            .map(|x| x.into_raw_vec())
-            .flatten()
-            .collect();
-        flattened_wects
+        let wect: tch::Tensor = tensor_complex.wect(&wp);
+        tensor_to_flat(&wect)
     };
 
     iter_complex(&inputs[0], &inputs[1], vdim, psimps, pweights, closure)

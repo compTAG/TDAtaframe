@@ -8,8 +8,6 @@ Specifically, these queries support the following pipeline:
 This whole pipeline can be called using compute_db_entry().
 """
 
-# TODO: DOCSTRINGS
-
 from typing import List
 import polars as pl
 from ..utils import flatten_matrix, unflatten_to_matrix
@@ -22,9 +20,21 @@ def premapped_wects(
     ma: MapArgs,
     wa: WectArgs,
 ) -> pl.Expr:
-    """
-    Compute the WECTs for the given simplices and weights.
+    """Compute the WECTs for the given simplices and weights.
+
     The simplices and weights columns are each flattened structs.
+    Before computing the WECTs, the mesh is mapped with a rigid transformation
+    to ensure the WECT is invariant to a rigid transformation of the input.
+    In some cases, this results in multiple WECTs being returned by this call,
+    corresponding to different transformations of the input mesh.
+
+    Args:
+        wci: Information about the simplices and weights of the mesh.
+        ma: Arguments for the mapping of the mesh.
+        wa: Arguments for the WECTs.
+
+    Returns:
+        A column of WECTs. Each WECT is a flattened matrix.
     """
 
     wects = pre_align_wect(
@@ -74,17 +84,18 @@ def with_premapped_wects(
 ) -> pl.LazyFrame:
     """Compute the WECTs for the given mesh data and transofrmations.
 
-    provided simplices and weights need to be in order.
-    leave out 0 from provided weights TODO: parse this? or do in rust backend?
-
-    TODO: Verify the rest of this docstring.
+    Args:
+        df: The dataframe containing the mesh data.
+        wci: Information about the simplices and weights of the mesh.
+        ma: Arguments for the mapping of the mesh.
+        wa: Arguments for the WECTs.
+        wname: The name of the column to store the computed WECTs.
 
     Returns:
         A lazyframe with the computed WECTs. The rows correspond to each WECT
         given by a transformation on an object.
 
     """
-
     return df.lazy().with_columns(premapped_wects(wci, ma, wa).alias(wname))
 
 
@@ -92,11 +103,14 @@ def wects(
     wci: WeightedComplexInfo,
     wa: WectArgs,
 ) -> pl.Expr:
-    """
-    Compute the WECTs for the given simplices and weights.
-    The simplices and weights columns are each flattened structs.
-    """
+    """Compute the WECTs for the given simplices and weights.
 
+    The simplices and weights columns are each flattened structs.
+
+    Args:
+        wci: Information about the simplices and weights of the mesh.
+        wa: Arguments for the WECTs.
+    """
     wects = wect(
         pl.col(wci.simplices),
         pl.col(wci.weights),
@@ -137,15 +151,9 @@ def with_wects(
 ) -> pl.LazyFrame:
     """Compute the WECTs for the given mesh data and transofrmations.
 
-    provided simplices and weights need to be in order.
-    leave out 0 from provided weights TODO: parse this? or do in rust backend?
-
-    TODO: Verify the rest of this docstring.
-
     Returns:
         A lazyframe with the computed WECTs. The rows correspond to each WECT
         given by a transformation on an object.
 
     """
-
     return df.lazy().with_columns(wects(wci, wa).alias(wname))

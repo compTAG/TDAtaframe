@@ -21,6 +21,7 @@ def with_barycenters(
     vdim: int,
     sdim: int,
     b: str,
+    flat_in=True,
 ) -> pl.LazyFrame:
     """Compute the barycenters of all meshes.
 
@@ -36,13 +37,22 @@ def with_barycenters(
     Return:
         A pl.LazyFrame including a column with the barycenters.
     """
+    if not flat_in:
+        return df.lazy().with_columns(
+            _barycenters(
+                flatten_matrix(pl.col(v)),
+                flatten_matrix(pl.col(t)),
+                embedded_dimension=vdim,
+                simplex_dimension=sdim,
+            ).alias(b),
+        )
     return df.lazy().with_columns(
         _barycenters(
-            flatten_matrix(pl.col(v)),
-            flatten_matrix(pl.col(t)),
+            pl.col(v),
+            pl.col(t),
             embedded_dimension=vdim,
             simplex_dimension=sdim,
-        ),
+        ).alias(b),
     )
 
 

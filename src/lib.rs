@@ -9,7 +9,7 @@ mod utils;
 pub mod expressions;
 use pyo3::types::{PyModule, PyModuleMethods};
 use pyo3::{pymodule, Bound, PyResult};
-// use pyo3_polars::PolarsAllocator;
+use pyo3_polars::PolarsAllocator;
 
 #[pymodule]
 fn _internal(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -17,8 +17,8 @@ fn _internal(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
-// #[global_allocator]
-// static ALLOC: PolarsAllocator = PolarsAllocator::new();
+#[global_allocator]
+static ALLOC: PolarsAllocator = PolarsAllocator::new();
 
 #[cfg(test)]
 mod tests {

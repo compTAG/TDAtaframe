@@ -26,7 +26,6 @@ pub trait PreMappable {
 }
 
 impl<P> PreMappable for WeightedOptComplex<P, P>
-// TODO: P, W
 where
     P: Float + FromPrimitive + RealField + SimpleEntity + ScalarOperand,
     f64: From<P>,

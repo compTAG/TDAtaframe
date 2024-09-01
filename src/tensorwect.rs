@@ -1,12 +1,9 @@
 use crate::{
     complex::{Complex, Weighted, WeightedOptComplex, WeightedTensorComplex},
-    utils::{array2_to_tensor, tensor_to_array2},
+    utils::array2_to_tensor,
 };
 use ndarray::Array2;
-use tch::{
-    kind::{self, Element},
-    Device, Kind, Tensor,
-};
+use tch::{kind::Element, Device, Kind, Tensor};
 
 #[derive(Debug)]
 pub struct WECTParams {
@@ -16,8 +13,8 @@ pub struct WECTParams {
 
 impl WECTParams {
     pub fn from_dirs(dirs: Tensor, num_heights: i64) -> Self {
-        let device = dirs.device();
-        let height_tensor = Tensor::scalar_tensor(num_heights, (kind::Kind::Int64, device));
+        // let device = dirs.device();
+        // // let height_tensor = Tensor::scalar_tensor(num_heights, (kind::Kind::Int64, device));
         WECTParams {
             dirs: dirs.set_requires_grad(false),
             num_heights, //height_tensor.set_requires_grad(false),
@@ -29,7 +26,6 @@ impl WECTParams {
         Self::from_dirs(dirs, num_heghts)
     }
 }
-
 pub trait TensorWect {
     type RotMat;
     fn pre_rot_wect(&self, params: &WECTParams, tx: Self::RotMat) -> Tensor;
@@ -56,7 +52,9 @@ where
 {
     type RotMat = Array2<f64>;
     fn wect(&self, params: &WECTParams) -> Tensor {
-        // TODO: make sure no missing dimensions
+        if self.has_missing_dims() {
+            panic!("Cannot compute WECT with missing dimensions");
+        }
         let device = tch::Device::cuda_if_available();
         let tensor_complex = WeightedTensorComplex::from(self, device);
         tensor_complex.wect(params)
@@ -101,15 +99,9 @@ fn sparsify_index_tensor(params: &WECTParams, index_tensor: &Tensor, weight_dtyp
         n,
         params.dirs.size()[0],
         params.num_heights, //.int64_value(&[0]),
-    ]; // TODO: check if this is correct
+    ];
 
-    Tensor::sparse_coo_tensor_indices_size(
-        &indices, // TODO: check if this is correct (i think so, indices is 2D)
-        &values,
-        &shape,
-        (Kind::Float, device),
-        false,
-    )
+    Tensor::sparse_coo_tensor_indices_size(&indices, &values, &shape, (Kind::Float, device), false)
 }
 
 fn wect(complex: &WeightedTensorComplex, vertex_coords: Tensor, params: &WECTParams) -> Tensor {
@@ -152,12 +144,12 @@ fn wect(complex: &WeightedTensorComplex, vertex_coords: Tensor, params: &WECTPar
     let wect = contributions.to_dense(None, false).cumsum(1, Kind::Float);
     wect
 }
-fn sample2D(num_dirs: i64, device: Device) -> Tensor {
+fn sample2d(num_dirs: i64, device: Device) -> Tensor {
     let t = Tensor::linspace(0.0, 6.283185, num_dirs, (Kind::Float, device));
     Tensor::stack(&[t.cos(), t.sin()], 1)
 }
 
-fn sample3D(num_dirs: i64, device: Device) -> Tensor {
+fn sample3d(num_dirs: i64, device: Device) -> Tensor {
     let _phi = (1.0 + 5.0f64.sqrt()) / 2.0;
     let z = Tensor::linspace(
         1.0 - 1.0 / num_dirs as f64,
@@ -180,8 +172,8 @@ fn sample3D(num_dirs: i64, device: Device) -> Tensor {
 
 fn sample_dirs(num_dirs: i64, dim: i64, device: Device) -> Tensor {
     match dim {
-        2 => sample2D(num_dirs, device),
-        3 => sample3D(num_dirs, device),
+        2 => sample2d(num_dirs, device),
+        3 => sample3d(num_dirs, device),
         _ => panic!("Invalid dimension, no implementation for >3"),
     }
 }

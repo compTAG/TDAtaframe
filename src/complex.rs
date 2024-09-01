@@ -331,26 +331,11 @@ where
     }
 }
 
-fn test_new_cplex() {
-    println!("Hello, world!");
-    let vertices: Vec<Vec<f32>> = vec![
-        vec![0.0, 0.0],
-        vec![1.0, 0.0],
-        vec![0.0, 1.0],
-        vec![1.0, 1.0],
-    ];
-    let simplices: Vec<Vec<Vec<usize>>> =
-        vec![vec![vec![0, 1], vec![1, 2], vec![2, 3], vec![3, 0]]];
-    let weights: Vec<Vec<f32>> = vec![vec![0.0, 1.0, 2.0, 3.0]];
-    let cpl: WeightedSimplicialComplex<Vec<Vec<f32>>, Vec<Vec<usize>>, Vec<f32>> =
-        WeightedSimplicialComplex::from_simplices(vertices, simplices, weights);
-}
-
 pub type WeightedArrayComplex = WeightedSimplicialComplex<Array2<f32>, Array2<usize>, Vec<f32>>;
 pub type WeightedOptComplex<P, W> =
     WeightedSimplicialComplex<Array2<P>, Option<Array2<usize>>, Option<Vec<W>>>;
 
-impl<P: Float, W: Float> WeightedOptComplex<P, W> {
+impl<P, W> WeightedOptComplex<P, W> {
     pub fn missing_simplex_dim(&self, dim: usize) -> bool {
         self.structure.simplices[dim - 1].is_none()
     }
@@ -358,18 +343,11 @@ impl<P: Float, W: Float> WeightedOptComplex<P, W> {
     pub fn missing_weight_dim(&self, dim: usize) -> bool {
         self.weights[dim].is_none()
     }
-}
 
-// TODO: implement this
-// pub fn map_complex(&mut self) {
-//     let top_dim = self.get_dim();
-//     compute_maps_svd(
-//         self.get_vertices(),
-//         self.get_simplices_dim(top_dim).unwrap().as_ref().unwrap(),
-//         self.get_weights_dim(top_dim).unwrap().as_ref().unwrap(),
-//     );
-// }
-//
+    pub fn has_missing_dims(&self) -> bool {
+        (1..=self.size()).any(|x| self.missing_simplex_dim(x) || self.missing_weight_dim(x))
+    }
+}
 
 type BTensor = Rc<Box<Tensor>>;
 pub type WeightedTensorComplex = WeightedSimplicialComplex<BTensor, BTensor, BTensor>;
@@ -419,4 +397,20 @@ impl WeightedSimplicialComplex<BTensor, BTensor, BTensor> {
 
         Self::from_simplices(vertices_t, simplices, weights)
     }
+}
+
+//TODO: testing
+fn test_new_cplex() {
+    println!("Hello, world!");
+    let vertices: Vec<Vec<f32>> = vec![
+        vec![0.0, 0.0],
+        vec![1.0, 0.0],
+        vec![0.0, 1.0],
+        vec![1.0, 1.0],
+    ];
+    let simplices: Vec<Vec<Vec<usize>>> =
+        vec![vec![vec![0, 1], vec![1, 2], vec![2, 3], vec![3, 0]]];
+    let weights: Vec<Vec<f32>> = vec![vec![0.0, 1.0, 2.0, 3.0]];
+    let cpl: WeightedSimplicialComplex<Vec<Vec<f32>>, Vec<Vec<usize>>, Vec<f32>> =
+        WeightedSimplicialComplex::from_simplices(vertices, simplices, weights);
 }

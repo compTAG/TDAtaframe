@@ -94,6 +94,11 @@ def test_bary() -> None:
             "vertices": [vertices.flatten()],
             "triangles": [triangles.flatten()],
         },
+        schema={
+            "ID": pl.String,
+            "vertices": pl.List(pl.Float32),
+            "triangles": pl.List(pl.UInt32),
+        },
     )
 
     target_bary = np.array([
@@ -112,16 +117,16 @@ def test_bary() -> None:
             df.lazy(),
             v="vertices",
             t="triangles",
-            b="barycenters",
             vdim=3,
             sdim=2,
+            b="barycenters",
         )
         .select("ID", "vertices", "triangles", "barycenters")
         .collect()
     )
     pprint.pprint(bdf.to_numpy(), width=200)
     barycenters = bdf.to_dict()["barycenters"].to_numpy()
-    assert np.allclose(barycenters[0], target_bary)
+    assert np.allclose(barycenters[0].reshape(-1, 3), target_bary)
 
 
 def test_wect():

@@ -21,9 +21,9 @@ pub fn iter_vert_simp_weight(
     let simplices: &ChunkedArray<ListType> = simplices_s.list()?;
     let weights: &ChunkedArray<ListType> = weights_s.list()?;
     let out: ChunkedArray<ListType> = vertices
-        .amortized_iter()
+        .amortized_iter() // HACK: Is amortized iter correct here?
         .zip(simplices.amortized_iter())
-        .zip(weights.amortized_iter()) // HACK: triple zip better way?
+        .zip(weights.amortized_iter())
         .map(|((v, s), w)| -> Option<Box<dyn Array>> {
             let chunked_vertices: &ChunkedArray<Float32Type> =
                 v.as_ref().unwrap().as_ref().f32().unwrap();
@@ -54,7 +54,6 @@ pub fn iter_vert_simp_weight(
         })
         .collect_ca_with_dtype("", DataType::List(Box::new(DataType::Float32)));
 
-    // call impl here?
     Ok(out.into_series())
 }
 
@@ -97,7 +96,6 @@ pub fn iter_vert_simp(
         })
         .collect_ca_with_dtype("", DataType::List(Box::new(DataType::Float32)));
 
-    // call impl here?
     Ok(out.into_series())
 }
 
@@ -123,7 +121,7 @@ pub fn iter_complex(
         weight_fields.iter().map(|x| x.list().unwrap()).collect();
 
     let out: ChunkedArray<ListType> = simplex_series[0]
-        .amortized_iter() // TODO: maybe want to get rid of amortized
+        .amortized_iter() // HACK: maybe want to get rid of amortized
         .enumerate()
         .map(|(j, v)| -> Option<Box<dyn Array>> {
             // j is the index of the row
@@ -184,8 +182,7 @@ pub fn iter_complex(
 
                 let s_row = simplices.pop_front().unwrap();
                 let simplex_array =
-                    ArrayView2::from_shape((s_row.len() / (dim + 1), (dim + 1)), &s_row).unwrap(); // TODO: no
-                                                                                                   // copy
+                    ArrayView2::from_shape((s_row.len() / (dim + 1), (dim + 1)), &s_row).unwrap(); // TODO: no copy
                 opt_simplices.push(Some(simplex_array.into_owned()));
                 i += 1;
             });
@@ -205,7 +202,7 @@ pub fn iter_complex(
 
             let out = complex_fn(&mut complex);
 
-            // TODO: remove generic
+            // TODO: make generic
             let prim = Box::new(PrimitiveArray::<f32>::from_vec(out));
             Some(prim)
         })

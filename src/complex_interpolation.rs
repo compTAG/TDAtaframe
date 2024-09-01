@@ -99,7 +99,7 @@ fn interpolate_simplices_down<F: Float>(
     weights: &Vec<F>,
 ) -> (Array2<usize>, Vec<F>) {
     // A map from simplex to (cum_weights, num_weights)
-    let n_simplices = simplices.shape()[0]; // the number of simplices
+    // let n_simplices = simplices.shape()[0]; // the number of simplices
     let coface_dim = simplices.shape()[1] - 1; // the dimension of the simplices
     let face_dim = coface_dim - 1; // the dimension of the faces
 
