@@ -8,15 +8,20 @@ Specifically, these queries support the following pipeline:
 This whole pipeline can be called using compute_db_entry().
 """
 
+# TODO: DOCSTRINGS
+
+from typing import List
 import polars as pl
 from ..utils import flatten_matrix, unflatten_to_matrix
-from .register import pre_align_wect
+from .register import pre_align_wect_3D_triangles, pre_align_wect
 
 
-def get_pred_mapped_wect_expr(vdim, vcol, tcol, ncol, eps, rot_params, wect_params):  # noqa
+def get_premapped_wect_3D_triangles_expr(
+    vdim, vcol, tcol, ncol, eps, rot_params, wect_params
+):  # noqa
     num_heights = wect_params["steps"]
     num_directions = wect_params["directions"]
-    wects = pre_align_wect(
+    wects = pre_align_wect_3D_triangles(
         flatten_matrix(pl.col(vcol)),
         flatten_matrix(pl.col(tcol)),
         flatten_matrix(pl.col(ncol)),
@@ -37,55 +42,42 @@ def get_pred_mapped_wect_expr(vdim, vcol, tcol, ncol, eps, rot_params, wect_para
 
     return wects
 
-    # res = (
-    #     df.lazy()
-    #     .select([id, v, t, n, nv, nt, txs])
-    #     .with_columns(pl.int_ranges(pl.col(txs).list.len()).alias(wid))
-    #     .with_row_index("i")
-    #     .with_columns(pl.col("i").repeat_by(pl.col(txs).list.len()).alias("irep"))
-    #     .cache()
-    # )
-    #
-    # wects = res.select(
-    #     _get_wects_expr(
-    #         pl.col(v),
-    #         pl.col(t),
-    #         pl.col(n),
-    #         pl.col(nv),
-    #         pl.col(nt),
-    #         pl.col(txs),
-    #         pl.col("irep"),
-    #         directions,
-    #         steps,
-    #     )
-    #     .reshape((1, steps * directions))
-    #     .alias(w),
-    #     pl.col("irep").explode(),
-    #     pl.col("wid").explode(),
-    # )
-    #
-    # res = (
-    #     res.select([id, txs, wid, "irep"])
-    #     .explode(txs, "irep", wid)
-    #     .with_columns(pl.col(txs).reshape((1, 9)))
-    #     .join(wects, on=["irep", wid])
-    # )
-    #
-    # if embedder is not None:
-    #     output_name = w
-    #     if emb_suffix is not None:
-    #         output_name += emb_suffix
-    #
-    #     res = res.with_columns(
-    #         _get_embedding_expr(pl.col(w), embedder).alias(output_name)
-    #     )
-    #     if output_name == w:
-    #         res = res.select([id, txs, w, wid])
-    #     else:
-    #         res = res.select([id, txs, w, wid, output_name])
-    # else:
-    #     res = res.select([id, txs, w, wid])
-    # return res
+
+def get_premapped_wect_expr(
+    vdim, scol, wcol, provided_simplices, provided_weights, rot_params, wect_params
+):  # noqa
+    """
+    Compute the WECTs for the given simplices and weights.
+    The simplices and weights columns are each flattened structs.
+    """
+    num_heights = wect_params["steps"]
+    num_directions = wect_params["directions"]
+
+    eps = None
+    if rot_params["heur_fix"]:
+        eps = rot_params["eps"]
+
+    wects = pre_align_wect(
+        pl.col(scol),
+        pl.col(wcol),
+        provided_simplices=provided_simplices,
+        provided_weights=provided_weights,
+        embedded_dimension=vdim,
+        num_heights=num_heights,
+        num_directions=num_directions,
+        subsample_ratio=rot_params["subsample_ratio"],
+        subsample_min=rot_params["subsample_min"],
+        subsample_max=rot_params["subsample_max"],
+        eps=eps,
+        copies=rot_params["copies"],
+    )  # output column of (n * d * d) flattened array of flattened matrices
+
+    # Reshape the maps
+    wects = unflatten_to_matrix(
+        wects, num_heights * num_directions
+    )  # now (n)-list of num_height * num_direction flattened matrices
+
+    return wects
 
 
 # def _get_embedding_expr(
@@ -102,7 +94,7 @@ def get_pred_mapped_wect_expr(vdim, vcol, tcol, ncol, eps, rot_params, wect_para
 #     )
 
 
-def get_premapped_wects(
+def get_premapped_3D_triangle_wects(
     df: pl.LazyFrame | pl.DataFrame,
     vertices: str,
     triangles: str,
@@ -147,12 +139,50 @@ def get_premapped_wects(
     vdim = 3  # TODO: unhardcode
 
     return df.lazy().with_columns(
-        get_pred_mapped_wect_expr(
+        get_premapped_wect_3D_triangles_expr(
             vdim,
             vertices,
             triangles,
             normals,
             eps,
+            rot_params,
+            wect_params,
+        ).alias(wname)
+    )
+
+
+def get_premapped_wects(
+    df: pl.LazyFrame | pl.DataFrame,
+    simplices: str,
+    weights: str,
+    provided_simplices: List[int],
+    provided_weights: List[int],
+    wect_params: dict,
+    rot_params: dict,
+    wname: str,
+) -> pl.LazyFrame:
+    """Compute the WECTs for the given mesh data and transofrmations.
+
+    provided simplices and weights need to be in order.
+    leave out 0 from provided weights TODO: parse this? or do in rust backend?
+
+    TODO: Verify the rest of this docstring.
+
+    Returns:
+        A lazyframe with the computed WECTs. The rows correspond to each WECT
+        given by a transformation on an object.
+
+    """
+
+    vdim = 3  # TODO: unhardcode
+
+    return df.lazy().with_columns(
+        get_premapped_wect_expr(
+            vdim,
+            simplices,
+            weights,
+            provided_simplices,
+            provided_weights,
             rot_params,
             wect_params,
         ).alias(wname)

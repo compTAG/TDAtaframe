@@ -147,6 +147,7 @@ pub trait Weighted: Complex {
     fn set_vertex_weights(&mut self, weights: Self::WRep);
 }
 
+#[derive(Debug)]
 pub struct SimplicialComplex<V, S> {
     vertices: V,
     simplices: Vec<S>,
@@ -217,6 +218,7 @@ where
     }
 }
 
+#[derive(Debug)]
 pub struct WeightedSimplicialComplex<V, S, W> {
     structure: SimplicialComplex<V, S>,
     weights: Vec<W>,

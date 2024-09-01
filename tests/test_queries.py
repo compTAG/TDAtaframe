@@ -5,7 +5,7 @@ import pprint
 
 
 from patina.alignment import get_barycenters, get_maps_svd
-from patina.wect import get_premapped_wects
+from patina.wect import get_premapped_3D_triangle_wects, get_premapped_wects
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -150,7 +150,7 @@ def test_bary() -> None:
     assert np.allclose(barycenters[0], target_bary)
 
 
-def test_wect():
+def test_wect_3D_tri():
     vertices, triangles, normals = build_octahedron(True, 2.0, 1.0, 3.0)
     vertices2, _, triangles2, normals2 = build_tetrahedron()
     df = pl.DataFrame(
@@ -169,7 +169,7 @@ def test_wect():
     )
     print(df)
 
-    wdf = get_premapped_wects(
+    wdf = get_premapped_3D_triangle_wects(
         df.lazy(),
         vertices="vertices",
         triangles="triangles",
@@ -185,6 +185,63 @@ def test_wect():
         ),
         wname="wects",
     ).select("ID", "vertices", "triangles", "wects")
+    print(wdf.explain(streaming=True))
+    wdf = wdf.collect()
+
+    wects = wdf.to_dict()["wects"].to_numpy()
+    for wect in wects:
+        wect = wect.reshape(-1, 25, 20)
+        print(wect)
+
+
+def test_wect():
+    vertices, triangles, normals = build_octahedron(True, 2.0, 1.0, 3.0)
+    vertices2, _, triangles2, normals2 = build_tetrahedron()
+    df = pl.DataFrame(
+        {
+            "ID": ["octahedron", "tetrahedron"],
+            "simplices": {
+                "vertices": [vertices.flatten(), vertices2.flatten()],
+                "triangles": [triangles.flatten(), triangles2.flatten()],
+            },
+            "weights": {
+                "trinormals": [normals, normals2],
+            },
+        },
+    )
+    #     schema={
+    #         "ID": pl.String,
+    #         "simplices": pl.Struct({
+    #             "vertices": pl.List(pl.Float32),
+    #             "triangles": pl.List(pl.UInt32),
+    #         }),
+    #         "weights": pl.Struct({"trinormals": pl.List(pl.Float32)}),
+    #     },
+    # )
+    print(df)
+
+    provided_simplices = [2]
+    provided_weights = [2]
+
+    print(df)
+
+    wdf = get_premapped_wects(
+        df.lazy(),
+        simplices="simplices",
+        weights="weights",
+        provided_simplices=provided_simplices,
+        provided_weights=provided_weights,
+        wect_params=dict(directions=25, steps=20),
+        rot_params=dict(
+            heur_fix=True,
+            eps=0.01,
+            subsample_ratio=1.0,
+            subsample_min=10,
+            subsample_max=100,
+            copies=False,
+        ),
+        wname="wects",
+    ).select("ID", "simplices", "weights", "wects")
     print(wdf.explain(streaming=True))
     wdf = wdf.collect()
 
