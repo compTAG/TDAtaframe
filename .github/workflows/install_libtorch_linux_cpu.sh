@@ -7,7 +7,7 @@ set -e
 curl -L https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-2.4.0%2Bcpu.zip -o libtorch.zip
 
 # Unzip the libraries to /opt/libtorch
-sudo unzip libtorch.zip -d /opt/
+unzip libtorch.zip -d /opt/
 
 export LIBTORCH=/opt/libtorch
 
