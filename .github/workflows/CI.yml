@@ -35,12 +35,15 @@ jobs:
   
       - name: Install libtorch
         run: .github/workflows/install_libtorch_linux_cuda.sh
+
+      - name: Set environment variables
+        run: |
+          echo "LIBTORCH=$(pwd)/libtorch" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+
   
       - name: Build wheels
         uses: PyO3/maturin-action@v1
-        env:
-          LIBTORCH: /usr/local/libtorch
-          LD_LIBRARY_PATH: /usr/local/libtorch/lib:$LD_LIBRARY_PATH
         with:
           target: ${{ matrix.platform.target }}
           args: --release --out dist
@@ -79,11 +82,13 @@ jobs:
       - name: Install libtorch
         run: .github/workflows/install_libtorch_linux_cpu.sh
   
+      - name: Set environment variables
+        run: |
+          echo "LIBTORCH=$(pwd)/libtorch" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+
       - name: Build wheels
         uses: PyO3/maturin-action@v1
-        env:
-          LIBTORCH: /usr/local/libtorch
-          LD_LIBRARY_PATH: /usr/local/libtorch/lib:$LD_LIBRARY_PATH
         with:
           target: ${{ matrix.platform.target }}
           args: --release --out dist
