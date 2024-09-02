@@ -11,17 +11,6 @@ permissions:
   contents: read
 
 jobs:
-on:
-  push:
-    tags:
-      - '*'
-  pull_request:
-  workflow_dispatch:
-
-permissions:
-  contents: read
-
-jobs:
   linux-cuda:
     runs-on: ${{ matrix.platform.runner }}
     strategy:
