@@ -39,21 +39,45 @@ jobs:
           rm libtorch.zip
           echo "LIBTORCH=$(pwd)/libtorch" >> $GITHUB_ENV
           echo "LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+          
+      - name: Install python dependencies
+        run: yum install -y unzip curl gcc openssl-devel bzip2-devel libffi-devel zlib-devel make
 
-      - name: Install Python maturin and build wheels
+      - name: Install Python 3.12
+        run: |
+          cd /tmp
+          wget https://www.python.org/ftp/python/3.12.0/Python-3.12.0.tgz
+          tar xzf Python-3.12.0.tgz
+          cd Python-3.12.0
+          ./configure --enable-optimizations
+          make install
+          ln -s /usr/local/bin/python3.12 /usr/local/bin/python3.12
+          ln -s /usr/local/bin/pip3.12 /usr/local/bin/pip3.12
+          python3.12 --version
+          pip3.12 --version
+
+      - name: Download and extract LibTorch
+        run: |
+          curl -L https://download.pytorch.org/libtorch/cpu/libtorch-shared-with-deps-2.4.0.zip -o libtorch.zip
+          unzip -o libtorch.zip -d $(pwd)
+          rm libtorch.zip
+          echo "LIBTORCH=$(pwd)/libtorch" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+
+      - name: Install Python maturin and build wheels for Python 3.11 and 3.12
         run: |
           source $HOME/.cargo/env
           export LIBTORCH=$(pwd)/libtorch
           export LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH
-          for PYBIN in /opt/python/cp3[6789]*/bin; do
+          for PYBIN in /opt/python/cp311*/bin /usr/local/bin/python3.12; do
             "${PYBIN}/pip" install maturin
-            "${PYBIN}/maturin" build -m Cargo.toml -i "${PYBIN}/python" --release --manylinux 2014
+            "${PYBIN}/maturin" build -m Cargo.toml -i "${PYBIN}/python" --release --manylinux 2_28
           done
       
       - name: Auditwheel repair
         run: |
           for wheel in target/wheels/*.whl; do
-              auditwheel repair "${wheel}" --plat manylinux2014_${{ matrix.platform }}
+              auditwheel repair "${wheel}" --plat manylinux_2_28_${{ matrix.platform }}
           done
 
       - name: Upload wheels
@@ -90,21 +114,44 @@ jobs:
           rm libtorch.zip
           echo "LIBTORCH=$(pwd)/libtorch" >> $GITHUB_ENV
           echo "LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+          
+      - name: Install python dependencies
+        run: yum install -y unzip curl gcc openssl-devel bzip2-devel libffi-devel zlib-devel make
 
-      - name: Install Python maturin and build wheels
+      - name: Install Python 3.12
+        run: |
+          cd /tmp
+          wget https://www.python.org/ftp/python/3.12.0/Python-3.12.0.tgz
+          tar xzf Python-3.12.0.tgz
+          cd Python-3.12.0
+          ./configure --enable-optimizations
+          make install
+          ln -s /usr/local/bin/python3.12 /usr/local/bin/python3.12
+          ln -s /usr/local/bin/pip3.12 /usr/local/bin/pip3.12
+          python3.12 --version
+          pip3.12 --version
+
+      - name: Download and extract LibTorch
+        run: |
+          unzip -o libtorch.zip -d $(pwd)
+          rm libtorch.zip
+          echo "LIBTORCH=$(pwd)/libtorch" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+
+      - name: Install Python maturin and build wheels for Python 3.11 and 3.12
         run: |
           source $HOME/.cargo/env
           export LIBTORCH=$(pwd)/libtorch
           export LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH
-          for PYBIN in /opt/python/cp3[6789]*/bin; do
+          for PYBIN in /opt/python/cp311*/bin /usr/local/bin/python3.12; do
             "${PYBIN}/pip" install maturin
-            "${PYBIN}/maturin" build -m Cargo.toml -i "${PYBIN}/python" --release --manylinux 2014
+            "${PYBIN}/maturin" build -m Cargo.toml -i "${PYBIN}/python" --release --manylinux 2_28
           done
       
       - name: Auditwheel repair
         run: |
           for wheel in target/wheels/*.whl; do
-              auditwheel repair "${wheel}" --plat manylinux2014_${{ matrix.platform }}
+              auditwheel repair "${wheel}" --plat manylinux_2_28_${{ matrix.platform }}
           done
 
       - name: Upload wheels
