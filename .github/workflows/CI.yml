@@ -18,7 +18,6 @@ jobs:
       matrix:
         platform:
           - x86_64
-          - x86
           - aarch64
     steps:
       - uses: actions/checkout@v4
