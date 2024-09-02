@@ -65,7 +65,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: wheels-linux-${{ matrix.platform }}
-          path: dist 
+          path: target/wheels 
 
 
   macos:
@@ -100,7 +100,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: wheels-macos-${{ matrix.platform }}
-          path: dist 
+          path: target/wheels
 
   sdist:
     runs-on: ubuntu-latest
