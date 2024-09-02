@@ -62,6 +62,7 @@ jobs:
       #     python3.12 --version
       #     pip3.12 --version
 
+
       - name: Install Python maturin and build wheels for Python 3.11 and 3.12
         run: |
           source $HOME/.cargo/env
@@ -69,16 +70,13 @@ jobs:
           export LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH
           for PYBIN in /opt/python/cp311*/bin /usr/local/bin; do
             if [[ "${PYBIN}" == "/usr/local/bin" ]]; then
-              PIP_PATH="${PYBIN}/pip3.12"
-              PYTHON_PATH="${PYBIN}/python3.12"
+              "${PYBIN}/pip3.12" install maturin
+              "${PYBIN}/python3.12" -m maturin build -m Cargo.toml --release --manylinux 2_28
             else
-              PIP_PATH="${PYBIN}/pip"
-              PYTHON_PATH="${PYBIN}/python"
+              "${PYBIN}/pip" install maturin
+              "${PYBIN}/python" -m maturin build -m Cargo.toml --release --manylinux 2_28
             fi
-            "${PIP_PATH}" install maturin
-            "${PYTHON_PATH}" -m maturin build -m Cargo.toml --release --manylinux 2_28 --pip-path "${PIP_PATH}"
           done
-      
 
       - name: Auditwheel repair
         run: |
