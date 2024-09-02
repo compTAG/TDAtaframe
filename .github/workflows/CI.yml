@@ -56,14 +56,7 @@ jobs:
       #     python3.12 --version
       #     pip3.12 --version
 
-      - name: Download and extract LibTorch
-        run: |
-          curl -L https://download.pytorch.org/libtorch/cpu/libtorch-shared-with-deps-2.4.0.zip -o libtorch.zip
-          unzip -o libtorch.zip -d $(pwd)
-          rm libtorch.zip
-          echo "LIBTORCH=$(pwd)/libtorch" >> $GITHUB_ENV
-          echo "LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
-
+      
       - name: Install Python maturin and build wheels for Python 3.11 and 3.12
         run: |
           source $HOME/.cargo/env
@@ -131,13 +124,7 @@ jobs:
       #     python3.12 --version
       #     pip3.12 --version
 
-      - name: Download and extract LibTorch
-        run: |
-          unzip -o libtorch.zip -d $(pwd)
-          rm libtorch.zip
-          echo "LIBTORCH=$(pwd)/libtorch" >> $GITHUB_ENV
-          echo "LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
-
+      - 
       - name: Install Python maturin and build wheels for Python 3.11 and 3.12
         run: |
           source $HOME/.cargo/env
