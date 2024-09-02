@@ -3,6 +3,13 @@
 # Exit immediately if a command exits with a non-zero status
 set -e
 
+# Install unzip if not available
+if ! command -v unzip &> /dev/null
+then
+    echo "unzip could not be found, installing..."
+    yum install -y unzip
+fi
+
 # Download libtorch
 curl -L https://download.pytorch.org/libtorch/cu124/libtorch-cxx11-abi-shared-with-deps-2.4.0%2Bcu124.zip -o libtorch.zip
 
