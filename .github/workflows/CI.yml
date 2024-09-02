@@ -13,14 +13,13 @@ permissions:
 jobs:
   linux-cuda:
     runs-on: ubuntu-latest
-    container: quay.io/pypa/manylinux2014_x86_64
+    container: quay.io/pypa/manylinux_2_28_x86_64:latest 
     strategy:
       matrix:
         platform:
           - x86_64
           - x86
           - aarch64
-          - armv7
     steps:
       - uses: actions/checkout@v4
       
@@ -65,14 +64,13 @@ jobs:
 
   linux-cpu:
     runs-on: ubuntu-latest
-    container: quay.io/pypa/manylinux2014_x86_64
+    container: quay.io/pypa/manylinux_2_28_x86_64:latest 
     strategy:
       matrix:
         platform:
           - x86_64
           - x86
           - aarch64
-          - armv7
     steps:
       - uses: actions/checkout@v4
       
