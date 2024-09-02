@@ -51,15 +51,15 @@ jobs:
           export LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH
           for PYBIN in /opt/python/cp311*/bin /opt/python/cp312*/bin; do
             "${PYBIN}/pip" install maturin
-            "${PYBIN}/python" -m maturin build -m Cargo.toml --release --manylinux 2_31
+            "${PYBIN}/python" -m maturin build -m Cargo.toml --release --manylinux 2_28
           done
 
-      - name: Auditwheel repair
-        run: |
-          for wheel in target/wheels/*.whl; do
-              auditwheel show "${wheel}"
-              auditwheel repair "${wheel}" --plat manylinux_2_31_${{ matrix.platform }}
-          done
+      # - name: Auditwheel repair
+      #   run: |
+      #     for wheel in target/wheels/*.whl; do
+      #         auditwheel show "${wheel}"
+      #         auditwheel repair "${wheel}" --plat manylinux_2_31_${{ matrix.platform }}
+      #     done
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
