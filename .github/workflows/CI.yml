@@ -68,21 +68,15 @@ jobs:
           source $HOME/.cargo/env
           export LIBTORCH=$(pwd)/libtorch
           export LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH
-          for PYBIN in /opt/python/cp311*/bin /usr/local/bin; do
-            if [[ "${PYBIN}" == "/usr/local/bin" ]]; then
-              "${PYBIN}/pip3.12" install maturin
-              "${PYBIN}/python3.12" -m maturin build -m Cargo.toml --release --manylinux 2_28
-            else
-              "${PYBIN}/pip" install maturin
-              "${PYBIN}/python" -m maturin build -m Cargo.toml --release --manylinux 2_28
-            fi
+          for PYBIN in /opt/python/cp311*/bin /opt/python/cp312*/bin; do
+            "${PYBIN}/pip" install maturin
+            "${PYBIN}/python" -m maturin build -m Cargo.toml --release --manylinux 2_28
           done
-
-      - name: Auditwheel repair
-        run: |
-          for wheel in target/wheels/*.whl; do
-              auditwheel repair "${wheel}" --plat manylinux_2_28_${{ matrix.platform }}
-          done
+            - name: Auditwheel repair
+              run: |
+                for wheel in target/wheels/*.whl; do
+                    auditwheel repair "${wheel}" --plat manylinux_2_28_${{ matrix.platform }}
+                done
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
