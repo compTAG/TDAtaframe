@@ -39,6 +39,11 @@ jobs:
           rm libtorch.zip
           echo "LIBTORCH=$(pwd)/libtorch" >> $GITHUB_ENV
           echo "LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+
+      - name: Verify Python and Pip installation
+        run: |
+          python3.12 --version
+          pip --version
           
       #- name: Install python dependencies
         #run: yum install -y unzip curl gcc openssl-devel bzip2-devel libffi-devel zlib-devel make
