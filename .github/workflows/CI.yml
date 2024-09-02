@@ -11,6 +11,17 @@ permissions:
   contents: read
 
 jobs:
+on:
+  push:
+    tags:
+      - '*'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
   linux-cuda:
     runs-on: ${{ matrix.platform.runner }}
     strategy:
@@ -29,26 +40,31 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: 3.x
-
+  
       - name: Set Script Permissions
         run: sudo chmod +x .github/workflows/install_libtorch_linux_cuda.sh
-
+  
+      - name: Install libtorch
+        run: .github/workflows/install_libtorch_linux_cuda.sh
+  
       - name: Build wheels
         uses: PyO3/maturin-action@v1
+        env:
+          LIBTORCH: /usr/local/libtorch
+          LD_LIBRARY_PATH: /usr/local/libtorch/lib:$LD_LIBRARY_PATH
         with:
           target: ${{ matrix.platform.target }}
           args: --release --out dist
           rust-toolchain: nightly
           sccache: 'true'
           manylinux: auto
-          before-script-linux: .github/workflows/install_libtorch_linux_cuda.sh
-
+  
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
           name: wheels-linux-${{ matrix.platform.target }}-cuda
           path: dist
-
+  
   linux-cpu:
     runs-on: ${{ matrix.platform.runner }}
     strategy:
@@ -67,21 +83,25 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: 3.x
-
+  
       - name: Set Script Permissions
         run: sudo chmod +x .github/workflows/install_libtorch_linux_cpu.sh
-
-
+  
+      - name: Install libtorch
+        run: .github/workflows/install_libtorch_linux_cpu.sh
+  
       - name: Build wheels
         uses: PyO3/maturin-action@v1
+        env:
+          LIBTORCH: /usr/local/libtorch
+          LD_LIBRARY_PATH: /usr/local/libtorch/lib:$LD_LIBRARY_PATH
         with:
           target: ${{ matrix.platform.target }}
           args: --release --out dist
           rust-toolchain: nightly
           sccache: 'true'
           manylinux: auto
-          before-script-linux: .github/workflows/install_libtorch_linux_cuda.sh
-
+  
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
@@ -116,32 +136,33 @@ jobs:
   #         name: wheels-windows-${{ matrix.platform.target }}
   #         path: dist
   #
-  # macos:
-  #   runs-on: ${{ matrix.platform.runner }}
-  #   strategy:
-  #     matrix:
-  #       platform:
-  #         - runner: macos-12
-  #           target: x86_64
-  #         - runner: macos-14
-  #           target: aarch64
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: actions/setup-python@v5
-  #       with:
-  #         python-version: 3.x
-  #     - name: Build wheels
-  #       uses: PyO3/maturin-action@v1
-  #       with:
-  #         target: ${{ matrix.platform.target }}
-  #         args: --release --out dist
-  #         rust-toolchain: nightly
-  #         sccache: 'true'
-  #     - name: Upload wheels
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: wheels-macos-${{ matrix.platform.target }}
-  #         path: dist
+  macos:
+    runs-on: ${{ matrix.platform.runner }}
+    strategy:
+      matrix:
+        platform:
+          - runner: macos-14
+            target: aarch64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.x
+
+      - name: Install LibTorch
+        run: .github/workflows/install_libtorch_macsilicon.sh
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.platform.target }}
+          args: --release --out dist
+          rust-toolchain: nightly
+          sccache: 'true'
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-macos-${{ matrix.platform.target }}
+          path: dist
   #
   # sdist:
   #   runs-on: ubuntu-latest

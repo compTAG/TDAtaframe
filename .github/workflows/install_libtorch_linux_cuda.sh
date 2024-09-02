@@ -30,9 +30,10 @@ fi
 curl -L https://download.pytorch.org/libtorch/cu124/libtorch-cxx11-abi-shared-with-deps-2.4.0%2Bcu124.zip -o libtorch.zip
 
 # Unzip the libraries to /opt/libtorch
-unzip libtorch.zip -d /opt/
+unzip libtorch.zip -d /usr/local
 
-export LIBTORCH=/opt/libtorch
+export LIBTORCH=/usr/local/libtorch
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIBTORCH/lib
 
 # Clean up the zip file
 rm libtorch.zip
