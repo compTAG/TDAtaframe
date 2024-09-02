@@ -9,7 +9,7 @@ curl -L https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with
 # Unzip the libraries to /usr/lib
 sudo unzip libtorch.zip
 
-cd sudo cp libtorch/lib/* /usr/lib/
+sudo cp libtorch/lib/* /usr/lib/
 
 # Clean up the zip file
 rm libtorch.zip
