@@ -35,7 +35,7 @@ jobs:
           python-version: 3.x
 
       - name: Install libtorch
-        run: ./install_libtorch_linux_cuda.sh
+        run: bash .github/workflows/install_libtorch_linux_cuda.sh
 
       - name: Build wheels
         uses: PyO3/maturin-action@v1
@@ -75,7 +75,7 @@ jobs:
           python-version: 3.x
 
       - name: Install libtorch
-        run: ./install_libtorch_linux_cpu.sh
+        run: bash .github/workflows/install_libtorch_linux_cpu.sh
 
       - name: Build wheels
         uses: PyO3/maturin-action@v1
