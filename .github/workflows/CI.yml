@@ -76,7 +76,8 @@ jobs:
       - name: Auditwheel repair
         run: |
           for wheel in target/wheels/*.whl; do
-              auditwheel repair "${wheel}" --plat manylinux_2_28_${{ matrix.platform }}
+              auditwheel show "${wheel}"
+              # auditwheel repair "${wheel}" --plat manylinux_2_28_${{ matrix.platform }}
           done
 
       - name: Upload wheels
@@ -150,7 +151,7 @@ jobs:
         run: |
           for wheel in target/wheels/*.whl; do
               auditwheel show "${wheel}"
-              auditwheel repair "${wheel}" --plat manylinux_2_28_${{ matrix.platform }}
+              # auditwheel repair "${wheel}" --plat manylinux_2_28_${{ matrix.platform }}
           done
 
       - name: Upload wheels
