@@ -69,6 +69,7 @@ jobs:
           name: wheels-linux-${{ matrix.platform }}-cuda
           path: target/wheels
 
+
   macos:
     runs-on: macos-14
     strategy:
@@ -102,3 +103,43 @@ jobs:
         with:
           name: wheels-macos-${{ matrix.platform }}
           path: target/wheels
+
+  sdist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build sdist
+        uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist
+          rust-toolchain: nightly
+      - name: Upload sdist
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-sdist
+          path: dist
+
+  upload-to-pypi:
+    needs: ['sdist', 'linux', 'macos']
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: wheels-sdist
+          path: dist
+          
+      # - name: Publish to PyPI
+      #   if: github.event_name == 'push' && contains(github.ref, 'refs/tags/v')
+      #   uses: pypa/gh-action-pypi-publish@release/v1
+      #   with:
+      #     user: __token__
+      #     password: ${{ secrets.PYPI_API_TOKEN }}
+
+      - name: Publish to Test PyPI
+        if: github.event_name == 'push' && !contains(github.ref, 'refs/tags/v')
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository_url: https://test.pypi.org/legacy/
+          user: __token__
+          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
