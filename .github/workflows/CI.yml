@@ -51,6 +51,7 @@ jobs:
           sccache: 'true'
           manylinux: auto
           docker_options: "-e LIBTORCH=$LIBTORCH -e LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
+          before-script-linux: .github/workflows/install_libtorch_linux_cuda.sh
   
       - name: Upload wheels
         uses: actions/upload-artifact@v4
@@ -80,8 +81,6 @@ jobs:
       - name: Set Script Permissions
         run: sudo chmod +x .github/workflows/install_libtorch_linux_cpu.sh
   
-      - name: Install libtorch
-        run: .github/workflows/install_libtorch_linux_cpu.sh
   
       - name: Set environment variables
         run: |
@@ -97,6 +96,7 @@ jobs:
           sccache: 'true'
           manylinux: auto
           docker_options: "-e LIBTORCH=$LIBTORCH -e LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
+          before-script-linux: .github/workflows/install_libtorch_linux_cpu.sh
           
   
       - name: Upload wheels
