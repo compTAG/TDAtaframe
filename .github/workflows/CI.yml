@@ -22,7 +22,11 @@ jobs:
           - aarch64
     steps:
       - uses: actions/checkout@v4
-      
+      - name: Verify Python and Pip installation
+        run: |
+          python3.12 --version
+          python3.12 -m ensurepip
+          python3.11 -m ensurepip
       - name: Install nightly Rust
         run: curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
 
@@ -40,11 +44,8 @@ jobs:
           echo "LIBTORCH=$(pwd)/libtorch" >> $GITHUB_ENV
           echo "LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
 
-      - name: Verify Python and Pip installation
-        run: |
-          python3.12 --version
-          pip --version
-          
+      
+
       #- name: Install python dependencies
         #run: yum install -y unzip curl gcc openssl-devel bzip2-devel libffi-devel zlib-devel make
 
@@ -95,7 +96,12 @@ jobs:
           - aarch64
     steps:
       - uses: actions/checkout@v4
-      
+      - name: Verify Python and Pip installation
+        run: |
+          python3.12 --version
+          python3.12 -m ensurepip
+          python3.11 -m ensurepip
+
       - name: Install nightly Rust
         run: curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
 
