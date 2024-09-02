@@ -40,8 +40,8 @@ jobs:
           echo "LIBTORCH=$(pwd)/libtorch" >> $GITHUB_ENV
           echo "LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
           
-      - name: Install python dependencies
-        run: yum install -y unzip curl gcc openssl-devel bzip2-devel libffi-devel zlib-devel make
+      #- name: Install python dependencies
+        #run: yum install -y unzip curl gcc openssl-devel bzip2-devel libffi-devel zlib-devel make
 
       # - name: Install Python 3.12
       #   run: |
@@ -108,8 +108,8 @@ jobs:
           echo "LIBTORCH=$(pwd)/libtorch" >> $GITHUB_ENV
           echo "LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
           
-      - name: Install python dependencies
-        run: yum install -y unzip curl gcc openssl-devel bzip2-devel libffi-devel zlib-devel make
+      #- name: Install python dependencies
+        #run: yum install -y unzip curl gcc openssl-devel bzip2-devel libffi-devel zlib-devel make
 
       # - name: Install Python 3.12
       #   run: |
@@ -160,7 +160,7 @@ jobs:
         run: curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
         
       - name: Install LibTorch
-        run: .github/workflows/install_libtorch_macos.sh
+        run: .github/workflows/install_libtorch_macsilicon.sh
          
       - name: Set environment variables
         run: |
