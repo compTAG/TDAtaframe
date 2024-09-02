@@ -64,8 +64,8 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-linux-${{ matrix.platform }}-cuda
-          path: target/wheels
+          name: wheels-linux-${{ matrix.platform }}
+          path: dist 
 
 
   macos:
@@ -100,7 +100,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: wheels-macos-${{ matrix.platform }}
-          path: target/wheels
+          path: dist 
 
   sdist:
     runs-on: ubuntu-latest
@@ -118,26 +118,40 @@ jobs:
           name: wheels-sdist
           path: dist
 
-  upload-to-pypi:
+  release:
+    name: Release
     needs: ['sdist', 'linux', 'macos']
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
     steps:
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v4
         with:
           name: wheels-sdist
           path: dist
-          
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheels-linux-x86_64
+          path: dist
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheels-macos-aarch64
+          path: dist
+
       # - name: Publish to PyPI
-      #   if: github.event_name == 'push' && contains(github.ref, 'refs/tags/v')
-      #   uses: pypa/gh-action-pypi-publish@release/v1
-      #   with:
-      #     user: __token__
-      #     password: ${{ secrets.PYPI_API_TOKEN }}
+            
+        # - name: Publish to PyPI
+        #   if: github.event_name == 'push' && contains(github.ref, 'refs/tags/v')
+        #   uses: pypa/gh-action-pypi-publish@release/v1
+        #   with:
+        #     user: __token__
+        #     password: ${{ secrets.PYPI_API_TOKEN }}
 
       - name: Publish to Test PyPI
-        if: github.event_name == 'push' && !contains(github.ref, 'refs/tags/v')
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository_url: https://test.pypi.org/legacy/
           user: __token__
           password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+
