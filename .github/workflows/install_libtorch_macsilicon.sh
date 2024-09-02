@@ -9,7 +9,7 @@ curl -L https://download.pytorch.org/libtorch/cpu/libtorch-macos-arm64-2.4.0.zip
 
 
 # Unzip the libraries to a writable location within the current workspace
-unzip libtorch.zip -d $(pwd)
+unzip -o libtorch.zip -d $(pwd)
 
 # Clean up the zip file
 rm libtorch.zip

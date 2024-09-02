@@ -32,7 +32,7 @@ fi
 curl -L https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-2.4.0%2Bcpu.zip -o libtorch.zip
 
 # Unzip the libraries to a writable location within the current workspace
-unzip libtorch.zip -d $(pwd)
+unzip -o libtorch.zip -d $(pwd)
 
 # Clean up the zip file
 rm libtorch.zip
