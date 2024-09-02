@@ -26,62 +26,61 @@ jobs:
             target: armv7
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: 3.x
+      - name: Install nightly rust
+        run: curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
 
       - name: Install libtorch
         run: bash .github/workflows/install_libtorch_linux_cuda.sh
 
-      - name: Build wheels
-        uses: PyO3/maturin-action@v1
-        with:
-          target: ${{ matrix.platform.target }}
-          args: --release --out dist
-          rust-toolchain: nightly
-          sccache: 'true'
-          manylinux: auto
+      - name: Build
+        run: |
+          source $HOME/.cargo/env
+          for PYBIN in /opt/python/cp3[678912]*/bin; do
+            "${PYBIN}/pip" install maturin
+            "${PYBIN}/maturin" build -i "${PYBIN}/python" --release --manylinux 2014
+          done
+
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
           name: wheels-linux-${{ matrix.platform.target }}-cuda
           path: dist
 
-  linux-cpu:
-    runs-on: ${{ matrix.platform.runner }}
-    strategy:
-      matrix:
-        platform:
-          - runner: ubuntu-latest
-            target: x86_64
-          - runner: ubuntu-latest
-            target: x86
-          - runner: ubuntu-latest
-            target: aarch64
-          - runner: ubuntu-latest
-            target: armv7
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: 3.x
-
-      - name: Install libtorch
-        run: bash .github/workflows/install_libtorch_linux_cpu.sh
-
-      - name: Build wheels
-        uses: PyO3/maturin-action@v1
-        with:
-          target: ${{ matrix.platform.target }}
-          args: --release --out dist
-          rust-toolchain: nightly
-          sccache: 'true'
-          manylinux: auto
-      - name: Upload wheels
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheels-linux-${{ matrix.platform.target }}-cpu
-          path: dist
+  # linux-cpu:
+  #   runs-on: ${{ matrix.platform.runner }}
+  #   strategy:
+  #     matrix:
+  #       platform:
+  #         - runner: ubuntu-latest
+  #           target: x86_64
+  #         - runner: ubuntu-latest
+  #           target: x86
+  #         - runner: ubuntu-latest
+  #           target: aarch64
+  #         - runner: ubuntu-latest
+  #           target: armv7
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-python@v5
+  #       with:
+  #         python-version: 3.x
+  #
+  #     - name: Install libtorch
+  #       run: bash .github/workflows/install_libtorch_linux_cpu.sh
+  #
+  #     - name: Build wheels
+  #       uses: PyO3/maturin-action@v1
+  #       with:
+  #         target: ${{ matrix.platform.target }}
+  #         args: --release --out dist
+  #         rust-toolchain: nightly
+  #         sccache: 'true'
+  #         manylinux: auto
+  #     - name: Upload wheels
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: wheels-linux-${{ matrix.platform.target }}-cpu
+  #         path: dist
 
   # windows-cpu:
   #   runs-on: ${{ matrix.platform.runner }}
