@@ -30,9 +30,6 @@ jobs:
         with:
           python-version: 3.x
 
-      - name: Install libtorch
-        run: bash .github/workflows/install_libtorch_linux_cuda.sh
-
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
@@ -40,7 +37,9 @@ jobs:
           args: --release --out dist
           rust-toolchain: nightly
           sccache: 'true'
-          container: no
+          manylinux: auto
+          before-script-linux: .github/actions/install_libtorch_linux_cuda.sh
+
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
@@ -66,9 +65,6 @@ jobs:
         with:
           python-version: 3.x
 
-      - name: Install libtorch
-        run: bash .github/workflows/install_libtorch_linux_cpu.sh
-
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
@@ -76,7 +72,8 @@ jobs:
           args: --release --out dist
           rust-toolchain: nightly
           sccache: 'true'
-          container: no
+          manylinux: auto
+          before-script-linux: .github/actions/install_libtorch_linux_cuda.sh
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
