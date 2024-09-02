@@ -50,6 +50,7 @@ jobs:
           rust-toolchain: nightly
           sccache: 'true'
           manylinux: auto
+          docker_options: "-e LIBTORCH=$LIBTORCH -e LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
   
       - name: Upload wheels
         uses: actions/upload-artifact@v4
@@ -95,6 +96,8 @@ jobs:
           rust-toolchain: nightly
           sccache: 'true'
           manylinux: auto
+          docker_options: "-e LIBTORCH=$LIBTORCH -e LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
+          
   
       - name: Upload wheels
         uses: actions/upload-artifact@v4
