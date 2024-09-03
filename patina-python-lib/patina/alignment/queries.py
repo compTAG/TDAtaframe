@@ -9,9 +9,10 @@ This whole pipeline can be called using compute_db_entry().
 """
 
 import polars as pl
+
 from ..utils import flatten_matrix, unflatten_to_matrix
-from .register import barycenters as _barycenters, maps_svd as _maps_svd
 from ..params import MapArgs
+from .register import maps_svd as _maps_svd, barycenters as _barycenters
 
 
 def with_barycenters(
@@ -21,18 +22,18 @@ def with_barycenters(
     vdim: int,
     sdim: int,
     b: str,
-    flat_in=True,
+    flat_in: bool = True,
 ) -> pl.LazyFrame:
     """Compute the barycenters of all meshes.
 
     Args:
         df: A lazyframe or dataframe with the vertices and triangles columns.
         v: name of the vertex column of type list[array[_,3]]
-        nv: number of vertices per point cloud.
-        nt: number of triangles per point cloud.
         t: name of the triangle column of type list[array[uint32,3]]. These
+        vdim: dimension of the vertices.
+        sdim: dimension of the simplices.
         b: name of the new barycenters column.
-        id: name of the unique ID column.
+        flat_in: if the inputs are already flattened.
 
     Return:
         A pl.LazyFrame including a column with the barycenters.
@@ -118,12 +119,15 @@ def with_maps_svd(
     Args:
         df: The dataframe containing the meshes.
         vertices: the name of the column containing the vertices, of type list[array[_,3]].
+        simplices: the name of the column containing the simplices, of type list[array[uint32,3]].
+        weights: the name of the column containing the weights, of type list[array[_,3]].
+        vdim: the dimension of the vertices.
+        ma: the arguments for the mapping computation.
         txname: the name of the output column for the computed mappings.
 
     Returns:
         A lazyframe with the computed mappings.
     """
-
     return df.with_columns(
         maps_svd(vertices, simplices, weights, vdim, ma).alias(txname)
     )

@@ -8,11 +8,11 @@ Specifically, these queries support the following pipeline:
 This whole pipeline can be called using compute_db_entry().
 """
 
-from typing import List
 import polars as pl
-from ..utils import flatten_matrix, unflatten_to_matrix
-from ..params import WeightedComplexInfo, MapArgs, WectArgs
-from .register import pre_align_wect, wect
+
+from ..utils import unflatten_to_matrix
+from ..params import MapArgs, WectArgs, WeightedComplexInfo
+from .register import wect, pre_align_wect
 
 
 def premapped_wects(
@@ -36,7 +36,6 @@ def premapped_wects(
     Returns:
         A column of WECTs. Each WECT is a flattened matrix.
     """
-
     wects = pre_align_wect(
         pl.col(wci.simplices),
         pl.col(wci.weights),

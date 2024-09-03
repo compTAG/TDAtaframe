@@ -1,4 +1,1 @@
-from . import alignment
-from . import wect
-from . import params
-
+from . import wect as wect, params as params, alignment as alignment

@@ -1,12 +1,11 @@
-import numpy as np
-import polars as pl
 import os
 import pprint
 
-
+import numpy as np
+import polars as pl
+from patina.wect import with_premapped_wects
 from patina.params import MapArgs, WectArgs, WeightedComplexInfo
-from patina.alignment import with_barycenters, with_maps_svd
-from patina.wect import with_premapped_wects, with_wects
+from patina.alignment import with_barycenters
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -129,7 +128,7 @@ def test_bary() -> None:
     assert np.allclose(barycenters[0].reshape(-1, 3), target_bary)
 
 
-def test_wect():
+def test_wect() -> None:
     vertices, triangles, normals = build_octahedron(True, 2.0, 1.0, 3.0)
     vertices2, _, triangles2, normals2 = build_tetrahedron()
     df = pl.DataFrame(

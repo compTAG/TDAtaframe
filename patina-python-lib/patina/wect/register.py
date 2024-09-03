@@ -1,8 +1,8 @@
+from typing import List, Optional
+from pathlib import Path
+
 from polars.plugins import register_plugin_function
 from polars.type_aliases import IntoExpr
-from pathlib import Path
-import polars as pl
-from typing import List, Optional
 
 lib = Path(__file__).parent.parent
 
