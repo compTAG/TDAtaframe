@@ -149,14 +149,14 @@ def test_wect():
     provided_weights = [2]
 
     wci = WeightedComplexInfo(
-        complex_name="simplices",
-        weights_name="weights",
-        vertices_dimension=3,
+        simplices="simplices",
+        weights="weights",
+        vdim=3,
         provided_simplices=provided_simplices,
         provided_weights=provided_weights,
     )
 
-    wa = WectArgs(num_directions=25, num_filt_steps=20)
+    wa = WectArgs(directions=25, steps=20)
     ma = MapArgs(
         subsample_ratio=1.0,
         subsample_min=10,

@@ -8,10 +8,10 @@ name = "patina"
 crate-type = ["cdylib"]
 
 [dependencies]
-polars = { version = "^0.42", features=["nightly", "performant", "lazy", "serde", "ndarray", "polars-ops", "dtype-array", "dtype-struct"]}
+polars = { version = "^0.42", features=["nightly", "performant", "serde", "polars-ops", "dtype-array", "dtype-struct"]}
 polars-arrow = { version = "^0.42"}
 pyo3 = { version = "^0.22.2", features = ["extension-module", "abi3-py312"] }
-pyo3-polars = { version = "^0.16.1", features = ["derive", "dtype-array", "dtype-struct", "lazy"] }
+pyo3-polars = { version = "^0.16.1", features = ["derive", "dtype-array", "dtype-struct"] }
 serde = { version = "*", features = ["derive"]}
 num-traits = { version = "*" }
 rand = { version = "*" }

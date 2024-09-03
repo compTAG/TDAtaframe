@@ -225,7 +225,6 @@ dependencies = [
  "android-tzdata",
  "iana-time-zone",
  "num-traits",
- "serde",
  "windows-targets",
 ]
 
@@ -249,33 +248,6 @@ dependencies = [
  "parse-zoneinfo",
  "phf",
  "phf_codegen",
-]
-
-[[package]]
-name = "ciborium"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "42e69ffd6f0917f5c029256a24d0161db17cea3997d185db0d35926308770f0e"
-dependencies = [
- "ciborium-io",
- "ciborium-ll",
- "serde",
-]
-
-[[package]]
-name = "ciborium-io"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "05afea1e0a06c9be33d539b876f1ce3692f4afea2cb41f740e7743225ed1c757"
-
-[[package]]
-name = "ciborium-ll"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57663b653d948a338bfb3eeba9bb2fd5fcfaecb9e199e87e1eda4d9e8b240fd9"
-dependencies = [
- "ciborium-io",
- "half",
 ]
 
 [[package]]
@@ -464,9 +436,6 @@ name = "either"
 version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "60b1af1c220855b6ceac025d3f6ecdd2b7c4894bfe9cd9bda4fbb4bc7c0d4cf0"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "enum-as-inner"
@@ -858,7 +827,6 @@ checksum = "93ead53efc7ea8ed3cfb0c79fc8023fbb782a5432b52830b6518941cebe6505c"
 dependencies = [
  "equivalent",
  "hashbrown",
- "serde",
 ]
 
 [[package]]
@@ -1457,7 +1425,6 @@ dependencies = [
  "polars-error",
  "polars-utils",
  "ryu",
- "serde",
  "simdutf8",
  "streaming-iterator",
  "strength_reduce",
@@ -1506,7 +1473,6 @@ dependencies = [
  "either",
  "hashbrown",
  "indexmap",
- "ndarray",
  "num-traits",
  "once_cell",
  "polars-arrow",
@@ -1589,13 +1555,11 @@ dependencies = [
  "polars-arrow",
  "polars-core",
  "polars-error",
- "polars-parquet",
  "polars-time",
  "polars-utils",
  "rayon",
  "regex",
  "ryu",
- "serde",
  "simdutf8",
  "smartstring",
 ]
@@ -1669,7 +1633,6 @@ dependencies = [
  "polars-utils",
  "rayon",
  "regex",
- "serde",
  "smartstring",
  "unicode-reverse",
  "version_check",
@@ -1691,7 +1654,6 @@ dependencies = [
  "polars-compute",
  "polars-error",
  "polars-utils",
- "serde",
  "simdutf8",
  "streaming-decompression",
 ]
@@ -1747,7 +1709,6 @@ dependencies = [
  "rayon",
  "recursive",
  "regex",
- "serde",
  "smartstring",
  "strum_macros",
  "version_check",
@@ -1804,7 +1765,6 @@ dependencies = [
  "polars-ops",
  "polars-utils",
  "regex",
- "serde",
  "smartstring",
 ]
 
@@ -1964,13 +1924,11 @@ version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c4888d52962f8433717f7ea7ab86c420720f2d89c00aa5712ec4d9353facb1ef"
 dependencies = [
- "ciborium",
  "libc",
  "once_cell",
  "polars",
  "polars-core",
  "polars-ffi",
- "polars-lazy",
  "polars-plan",
  "pyo3",
  "pyo3-polars-derive",
