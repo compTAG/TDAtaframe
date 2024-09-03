@@ -11,168 +11,147 @@ permissions:
   contents: read
 
 jobs:
-  linux-cuda:
-    runs-on: ${{ matrix.platform.runner }}
+  linux:
+    runs-on: ubuntu-latest
+    container: quay.io/pypa/manylinux_2_28_x86_64:latest 
     strategy:
       matrix:
         platform:
-          - runner: ubuntu-latest
-            target: x86_64
-          - runner: ubuntu-latest
-            target: x86
-          - runner: ubuntu-latest
-            target: aarch64
-          - runner: ubuntu-latest
-            target: armv7
-          - runner: ubuntu-latest
-            target: s390x
-          - runner: ubuntu-latest
-            target: ppc64le
+          - x86_64
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: 3.x
+      - name: Verify Python and Pip installation
+        run: |
+          python3.12 --version
+          python3.12 -m ensurepip
+          python3.11 -m ensurepip
+      - name: Install nightly Rust
+        run: curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
 
-      - name: Install libtorch
-        run: bash .github/workflows/install_libtorch_linux_cuda.sh
+      - name: Set up Rust toolchain and dependencies
+        run: source $HOME/.cargo/env
 
-      - name: Build wheels
-        uses: PyO3/maturin-action@v1
-        with:
-          target: ${{ matrix.platform.target }}
-          args: --release --out dist
-          rust-toolchain: nightly
-          sccache: 'true'
-          manylinux: auto
+      - name: Install unzip
+        run: yum install -y unzip curl
+
+      - name: Download and extract LibTorch
+        run: |
+          curl -L https://download.pytorch.org/libtorch/cu124/libtorch-cxx11-abi-shared-with-deps-2.4.0%2Bcu124.zip -o libtorch.zip
+          unzip -o libtorch.zip -d $(pwd)
+          rm libtorch.zip
+          echo "LIBTORCH=$(pwd)/libtorch" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+
+      
+
+      - name: Install Python maturin and build wheels for Python 3.11 and 3.12
+        run: |
+          source $HOME/.cargo/env
+          export LIBTORCH=$(pwd)/libtorch
+          export LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH
+          for PYBIN in /opt/python/cp311*/bin /opt/python/cp312*/bin; do
+            "${PYBIN}/pip" install maturin
+            "${PYBIN}/python" -m maturin build -m Cargo.toml --release --manylinux 2_28
+          done
+
+      # - name: Auditwheel repair
+      #   run: |
+      #     for wheel in target/wheels/*.whl; do
+      #         auditwheel show "${wheel}"
+      #         auditwheel repair "${wheel}" --plat manylinux_2_31_${{ matrix.platform }}
+      #     done
+
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-linux-${{ matrix.platform.target }}-cuda
-          path: dist
+          name: wheels-linux-${{ matrix.platform }}
+          path: target/wheels 
 
-  linux-cpu:
-    runs-on: ${{ matrix.platform.runner }}
+
+  macos:
+    runs-on: macos-14
     strategy:
       matrix:
         platform:
-          - runner: ubuntu-latest
-            target: x86_64
-          - runner: ubuntu-latest
-            target: x86
-          - runner: ubuntu-latest
-            target: aarch64
-          - runner: ubuntu-latest
-            target: armv7
-          - runner: ubuntu-latest
-            target: s390x
-          - runner: ubuntu-latest
-            target: ppc64le
+          - aarch64
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: 3.x
-
-      - name: Install libtorch
-        run: bash .github/workflows/install_libtorch_linux_cpu.sh
-
-      - name: Build wheels
-        uses: PyO3/maturin-action@v1
-        with:
-          target: ${{ matrix.platform.target }}
-          args: --release --out dist
-          rust-toolchain: nightly
-          sccache: 'true'
-          manylinux: auto
+      
+      - name: Install nightly Rust
+        run: curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
+        
+      - name: Install LibTorch
+        run: .github/workflows/install_libtorch_macsilicon.sh
+         
+      - name: Set environment variables
+        run: |
+          echo "LIBTORCH=$(pwd)/libtorch" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+      
+      - name: Install Python maturin and build wheels
+        run: |
+          source $HOME/.cargo/env
+          export LIBTORCH=$(pwd)/libtorch
+          export LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH
+          pip install maturin
+          maturin build -m Cargo.toml --release
+        
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-linux-${{ matrix.platform.target }}-cpu
+          name: wheels-macos-${{ matrix.platform }}
+          path: target/wheels
+
+  sdist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build sdist
+        uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist
+          rust-toolchain: nightly
+      - name: Upload sdist
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-sdist
           path: dist
 
-  # windows-cpu:
-  #   runs-on: ${{ matrix.platform.runner }}
-  #   strategy:
-  #     matrix:
-  #       platform:
-  #         - runner: windows-latest
-  #           target: x64
-  #         - runner: windows-latest
-  #           target: x86
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: actions/setup-python@v5
-  #       with:
-  #         python-version: 3.x
-  #         architecture: ${{ matrix.platform.target }}
-  #     - name: Build wheels
-  #       uses: PyO3/maturin-action@v1
-  #       with:
-  #         target: ${{ matrix.platform.target }}
-  #         args: --release --out dist
-  #         rust-toolchain: nightly
-  #         sccache: 'true'
-  #     - name: Upload wheels
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: wheels-windows-${{ matrix.platform.target }}
-  #         path: dist
-  #
-  # macos:
-  #   runs-on: ${{ matrix.platform.runner }}
-  #   strategy:
-  #     matrix:
-  #       platform:
-  #         - runner: macos-12
-  #           target: x86_64
-  #         - runner: macos-14
-  #           target: aarch64
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: actions/setup-python@v5
-  #       with:
-  #         python-version: 3.x
-  #     - name: Build wheels
-  #       uses: PyO3/maturin-action@v1
-  #       with:
-  #         target: ${{ matrix.platform.target }}
-  #         args: --release --out dist
-  #         rust-toolchain: nightly
-  #         sccache: 'true'
-  #     - name: Upload wheels
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: wheels-macos-${{ matrix.platform.target }}
-  #         path: dist
-  #
-  # sdist:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: Build sdist
-  #       uses: PyO3/maturin-action@v1
-  #       with:
-  #         command: sdist
-  #         args: --out dist
-  #         rust-toolchain: nightly
-  #     - name: Upload sdist
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: wheels-sdist
-  #         path: dist
-  #
-  # release:
-  #   name: Release
-  #   runs-on: ubuntu-latest
-  #   if: "startsWith(github.ref, 'refs/tags/')"
-  #   needs: [sdist]
-  #   steps:
-  #     - uses: actions/download-artifact@v4
-  #     - name: Publish to PyPI
-  #       uses: PyO3/maturin-action@v1
-  #       env:
-  #         MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
-  #       with:
-  #         command: upload
-  #         args: --non-interactive --skip-existing wheels-*/*
+  release:
+    name: Release
+    needs: ['sdist', 'linux', 'macos']
+    runs-on: ubuntu-latest
+    # if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheels-sdist
+          path: dist
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheels-linux-x86_64
+          path: dist
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheels-macos-aarch64
+          path: dist
+
+      # - name: Publish to PyPI
+            
+        # - name: Publish to PyPI
+        #   if: github.event_name == 'push' && contains(github.ref, 'refs/tags/v')
+        #   uses: pypa/gh-action-pypi-publish@release/v1
+        #   with:
+        #     user: __token__
+        #     password: ${{ secrets.PYPI_API_TOKEN }}
+
+      - name: Publish to Test PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository_url: https://test.pypi.org/legacy/
+          user: __token__
+          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+
