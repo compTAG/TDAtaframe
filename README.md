@@ -1,4 +1,4 @@
-# patina
+# TDAtaframe
 TDA brought to dataframes.
 
 # TODO

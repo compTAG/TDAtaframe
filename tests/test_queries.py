@@ -2,11 +2,11 @@ import os
 import pprint
 
 import numpy as np
-from patina.wect.queries import with_premapped_copy_wects, with_wects
+from tdataframe.wect.queries import with_premapped_copy_wects, with_wects
 import polars as pl
-from patina.wect import with_premapped_wects
-from patina.params import MapArgs, MapCopyArgs, WectArgs, WeightedComplexInfo
-from patina.alignment import with_barycenters
+from tdataframe.wect import with_premapped_wects
+from tdataframe.params import MapArgs, MapCopyArgs, WectArgs, WeightedComplexInfo
+from tdataframe.alignment import with_barycenters
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 

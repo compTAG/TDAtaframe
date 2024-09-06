@@ -1,5 +1,5 @@
 [project]
-name = "patina"
+name = "TDAtaframe"
 requires-python = ">=3.12"
 version = "0.1.0"
 description = "A package to handle shape-matching for meshes"
@@ -16,11 +16,11 @@ requires = ["maturin>=1.7,<2.0", "polars>=0.42"]
 build-backend = "maturin"
 
 [tool.maturin]
-module_name = "patina._internal"
-python-source = "patina-python-lib"
+module_name = "TDAtaframe._internal"
+python-source = "python-lib"
 
 [tool.poetry]
-name = "patina"
+name = "TDAtaframe"
 version = "0.1.0"
 description = "A package to handle shape-matching for meshes"
 authors = ["Jack Ruder <jackruder@montana.edu>"]
