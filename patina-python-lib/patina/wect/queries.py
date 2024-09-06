@@ -109,6 +109,29 @@ def premapped_wects(
 #     )
 
 
+def with_premapped_copy_wects(
+    df: pl.LazyFrame | pl.DataFrame,
+    wci: WeightedComplexInfo,
+    ma: MapCopyArgs,
+    wa: WectArgs,
+    wname: str,
+) -> pl.LazyFrame:
+    """Compute all premapped WECTs for the given mesh data and transofrmations.
+
+    Args:
+        df: The dataframe containing the mesh data.
+        wci: Information about the simplices and weights of the mesh.
+        ma: Arguments for the mapping of the mesh.
+        wa: Arguments for the WECTs.
+        wname: The name of the column to store the computed WECTs.
+
+    Returns:
+        A lazyframe with the computed WECTs. The rows correspond to each WECT
+        given by a transformation on an object.
+    """
+    return df.lazy().with_columns(premapped_copy_wects(wci, ma, wa).alias(wname))
+
+
 def with_premapped_wects(
     df: pl.LazyFrame | pl.DataFrame,
     wci: WeightedComplexInfo,
@@ -116,7 +139,7 @@ def with_premapped_wects(
     wa: WectArgs,
     wname: str,
 ) -> pl.LazyFrame:
-    """Compute the WECTs for the given mesh data and transofrmations.
+    """Compute the WECT for each given simplicial complex, premapping the mesh before computing the WECT.
 
     Args:
         df: The dataframe containing the mesh data.
@@ -137,10 +160,7 @@ def wects(
     wci: WeightedComplexInfo,
     wa: WectArgs,
 ) -> pl.Expr:
-    """Compute the WECTs for the given simplices and weights.
-
-    The simplices and weights columns are each flattened structs.
-
+    """Compute the WECTs for the given simplices and weights. The simplices and weights columns are each flattened structs.
     Args:
         wci: Information about the simplices and weights of the mesh.
         wa: Arguments for the WECTs.

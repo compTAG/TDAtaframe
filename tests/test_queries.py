@@ -2,9 +2,10 @@ import os
 import pprint
 
 import numpy as np
+from patina.wect.queries import with_premapped_copy_wects, with_wects
 import polars as pl
 from patina.wect import with_premapped_wects
-from patina.params import MapArgs, WectArgs, WeightedComplexInfo
+from patina.params import MapArgs, MapCopyArgs, WectArgs, WeightedComplexInfo
 from patina.alignment import with_barycenters
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -156,7 +157,103 @@ def test_wect() -> None:
     )
 
     wa = WectArgs(directions=25, steps=20)
+
+    print(df)
+
+    wdf = with_wects(
+        df.lazy(),
+        wci,
+        wa=wa,
+        wname="wects",
+    ).select("ID", "simplices", "weights", "wects")
+    print(wdf.explain(streaming=True))
+    wdf = wdf.collect()
+
+    wect = wdf.to_dict()["wects"].to_numpy()
+    print(wect)
+
+
+# TODO: Add assertions for WECT queries
+def test_premapped_wect() -> None:
+    vertices, triangles, normals = build_octahedron(True, 2.0, 1.0, 3.0)
+    vertices2, _, triangles2, normals2 = build_tetrahedron()
+    df = pl.DataFrame(
+        {
+            "ID": ["octahedron", "tetrahedron"],
+            "simplices": {
+                "vertices": [vertices.flatten(), vertices2.flatten()],
+                "triangles": [triangles.flatten(), triangles2.flatten()],
+            },
+            "weights": {
+                "trinormals": [normals, normals2],
+            },
+        },
+    )
+
+    provided_simplices = [2]
+    provided_weights = [2]
+
+    wci = WeightedComplexInfo(
+        simplices="simplices",
+        weights="weights",
+        vdim=3,
+        provided_simplices=provided_simplices,
+        provided_weights=provided_weights,
+    )
+
+    wa = WectArgs(directions=25, steps=20)
     ma = MapArgs(
+        subsample_ratio=1.0,
+        subsample_min=10,
+        subsample_max=100,
+        align_dimension=2,
+    )
+
+    print(df)
+
+    wdf = with_premapped_wects(
+        df.lazy(),
+        wci,
+        ma=ma,
+        wa=wa,
+        wname="wects",
+    ).select("ID", "simplices", "weights", "wects")
+    print(wdf.explain(streaming=True))
+    wdf = wdf.collect()
+
+    wect = wdf.to_dict()["wects"].to_numpy()
+    print(wect)
+
+
+def test_premapped_copy_wect() -> None:
+    vertices, triangles, normals = build_octahedron(True, 2.0, 1.0, 3.0)
+    vertices2, _, triangles2, normals2 = build_tetrahedron()
+    df = pl.DataFrame(
+        {
+            "ID": ["octahedron", "tetrahedron"],
+            "simplices": {
+                "vertices": [vertices.flatten(), vertices2.flatten()],
+                "triangles": [triangles.flatten(), triangles2.flatten()],
+            },
+            "weights": {
+                "trinormals": [normals, normals2],
+            },
+        },
+    )
+
+    provided_simplices = [2]
+    provided_weights = [2]
+
+    wci = WeightedComplexInfo(
+        simplices="simplices",
+        weights="weights",
+        vdim=3,
+        provided_simplices=provided_simplices,
+        provided_weights=provided_weights,
+    )
+
+    wa = WectArgs(directions=25, steps=20)
+    ma = MapCopyArgs(
         subsample_ratio=1.0,
         subsample_min=10,
         subsample_max=100,
@@ -167,7 +264,7 @@ def test_wect() -> None:
 
     print(df)
 
-    wdf = with_premapped_wects(
+    wdf = with_premapped_copy_wects(
         df.lazy(),
         wci,
         ma=ma,

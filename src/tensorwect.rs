@@ -28,7 +28,10 @@ impl WECTParams {
 }
 pub trait TensorWect {
     type RotMat;
+    // Computes the WECT for the complex, applying a rotation matrix to the vertices beforehand.
     fn pre_rot_wect(&self, params: &WECTParams, tx: Self::RotMat) -> Tensor;
+
+    // Computes the WECT for the complex.
     fn wect(&self, params: &WECTParams) -> Tensor;
 }
 

@@ -103,8 +103,8 @@ pub fn iter_complex(
     simplices_s: &Series,
     weights_s: &Series,
     vdim: usize,
-    psimps: &Vec<usize>,
-    pweights: &Vec<usize>,
+    psimps: &Vec<usize>,   //provided simplices, sorted, 1 to k
+    pweights: &Vec<usize>, //provided weights, sorted, 0 to k
     mut complex_fn: impl FnMut(&mut WeightedOptComplex<f32, f32>) -> Vec<f32>,
 ) -> PolarsResult<Series> {
     if psimps.len() == 0 && psimps[0] == 0 {
