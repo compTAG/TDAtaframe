@@ -14,7 +14,7 @@ use crate::complex::{Complex, Weighted, WeightedOptComplex};
 pub trait PreMappable {
     type Output;
     type Point;
-    fn premap(
+    fn premap_copy(
         &self,
         align_dim: usize,
         subsample_ratio: f32,
@@ -23,6 +23,14 @@ pub trait PreMappable {
         eps: Option<Self::Point>,
         copies: bool,
     ) -> Vec<Self::Output>;
+
+    fn premap(
+        &self,
+        align_dim: usize,
+        subsample_ratio: f32,
+        subsample_min: usize,
+        subsample_max: usize,
+    ) -> Self::Output;
 }
 
 impl<P> PreMappable for WeightedOptComplex<P, P>
@@ -34,7 +42,7 @@ where
     type Output = Array2<P>;
     type Point = P;
 
-    fn premap(
+    fn premap_copy(
         &self,
         align_dim: usize,
         subsample_ratio: f32,
@@ -44,7 +52,7 @@ where
         copies: bool,
     ) -> Vec<Self::Output> {
         let (simplices, weights) = self.get_pair_dim(align_dim);
-        compute_maps_svd(
+        compute_maps_svd_copies(
             &self.get_vertices().view(),
             &simplices.as_ref().unwrap().view(),
             weights.as_ref().unwrap(),
@@ -53,6 +61,24 @@ where
             subsample_max,
             eps,
             copies,
+        )
+    }
+
+    fn premap(
+        &self,
+        align_dim: usize,
+        subsample_ratio: f32,
+        subsample_min: usize,
+        subsample_max: usize,
+    ) -> Self::Output {
+        let (simplices, weights) = self.get_pair_dim(align_dim);
+        compute_map_svd(
+            &self.get_vertices().view(),
+            &simplices.as_ref().unwrap().view(),
+            weights.as_ref().unwrap(),
+            subsample_ratio,
+            subsample_min,
+            subsample_max,
         )
     }
 }
@@ -121,11 +147,7 @@ where
         / (points.shape().0.as_())
 }
 
-pub fn weighted_centroid_offset<F>(
-    points: MatRef<F>,
-    weights: &Vec<F>,
-    tx: MatRef<F>,
-) -> row::Row<F>
+pub fn weighted_centroid_offset<F>(points: MatRef<F>, weights: &Vec<F>) -> row::Row<F>
 where
     F: Float + ScalarOperand + SimpleEntity + RealField + ToPrimitive,
     usize: AsPrimitive<F>,
@@ -133,48 +155,25 @@ where
 {
     let weight_col = col::from_slice(weights);
 
-    let rotated = points * tx.transpose();
-
     let d: f64 = (points.shape().0.as_() * compute_point_cloud_norm_factor(&points)).into();
-    let wcenter = (weight_col.transpose() * rotated) / d;
+    let wcenter = (weight_col.transpose() * points) / d;
 
     wcenter
 }
 
-//TODO: generalize to n-dimensions
-pub fn compute_heur_fix<F: Float + 'static>(tx: MatRef<F>, wcentroid: row::Row<F>) -> Vec<Array2<F>>
+// place 1s or -1s on the diagonal of the matrix,
+// depending on the sign of the weighted centroid offset
+pub fn compute_heur_fix<F: Float + 'static>(wcentroid: col::Col<F>) -> Array2<F>
 where
     F: SimpleEntity,
 {
-    let tx = IntoNdarray::into_ndarray(tx);
-    let mut fix = Array2::<F>::eye(3);
-    let x_is_pos = wcentroid[0] > F::zero();
-    let y_is_pos = wcentroid[1] > F::zero();
-
-    if x_is_pos && !y_is_pos {
-        // then rotate x
-        fix = array![
-            [F::one(), F::zero(), F::zero()],
-            [F::zero(), -F::one(), F::zero()],
-            [F::zero(), F::zero(), -F::one()]
-        ];
-    } else if !x_is_pos && y_is_pos {
-        // then rotate y
-        fix = array![
-            [-F::one(), F::zero(), F::zero()],
-            [F::zero(), F::one(), F::zero()],
-            [F::zero(), F::zero(), -F::one()]
-        ];
-    } else if !x_is_pos && !y_is_pos {
-        // then rotate z
-        fix = array![
-            [-F::one(), F::zero(), F::zero()],
-            [F::zero(), -F::one(), F::zero()],
-            [F::zero(), F::zero(), F::one()]
-        ];
-    }
-
-    vec![fix.dot(&tx)]
+    let mut iden = Array2::<F>::eye(wcentroid.nrows());
+    wcentroid.iter().enumerate().for_each(|(i, x)| {
+        if x.is_sign_negative() {
+            iden[[i, i]] = -F::one();
+        }
+    });
+    iden
 }
 
 //TODO: generalize to n-dimensions
@@ -205,21 +204,22 @@ where
         .collect()
 }
 
-pub fn compute_maps_svd<F>(
+pub fn compute_maps_svd_copies<F>(
     vertices: &ArrayView2<F>,
     simplices: &ArrayView2<usize>,
-    face_normals: &Vec<F>,
+    simplex_weights: &Vec<F>,
     subsample_ratio: f32,
     subsample_min: usize,
     subsample_max: usize,
-    eps: Option<F>,
-    copies: bool,
+    eps: Option<F>, // try heur fix if the weighted centroid offset is less than eps
+    copies: bool,   // always produce copies
 ) -> Vec<Array2<F>>
 where
     F: Float + FromPrimitive + RealField + SimpleEntity + ScalarOperand,
     usize: AsPrimitive<F>,
     f64: From<F>,
 {
+    // obtain subsampled barycenters
     let barycenters = compute_barycenters(&vertices.view(), &simplices.view());
     let bary_mat = IntoFaer::into_faer(barycenters.view());
     let sub_bary_mat = subsample_points_to_mat(
@@ -228,18 +228,24 @@ where
         subsample_min,
         subsample_max,
     );
+
+    // get the vt matrix from the svd of the subsampled barycenters
     let vt = compute_vt(sub_bary_mat.as_ref());
     let vtref = vt.as_ref();
+
     if copies {
         compute_copies(vtref)
     } else {
         match eps {
             Some(eps) => {
-                let w_offset = weighted_centroid_offset(bary_mat, face_normals, vtref);
+                let w_offset =
+                    vtref * weighted_centroid_offset(bary_mat, simplex_weights).transpose();
                 if w_offset.norm_l2() < eps {
                     compute_copies(vtref)
                 } else {
-                    compute_heur_fix(vtref, w_offset)
+                    let mut tx = IntoNdarray::into_ndarray(vtref).into_owned();
+                    tx = compute_heur_fix(w_offset).dot(&tx);
+                    vec![tx]
                 }
             }
             None => {
@@ -252,4 +258,36 @@ where
             }
         }
     }
+}
+
+pub fn compute_map_svd<F>(
+    vertices: &ArrayView2<F>,
+    simplices: &ArrayView2<usize>,
+    simplex_weights: &Vec<F>,
+    subsample_ratio: f32,
+    subsample_min: usize,
+    subsample_max: usize,
+) -> Array2<F>
+where
+    F: Float + FromPrimitive + RealField + SimpleEntity + ScalarOperand,
+    usize: AsPrimitive<F>,
+    f64: From<F>,
+{
+    // obtain subsampled barycenters
+    let barycenters = compute_barycenters(&vertices.view(), &simplices.view());
+    let bary_mat = IntoFaer::into_faer(barycenters.view());
+    let sub_bary_mat = subsample_points_to_mat(
+        &barycenters.view(),
+        subsample_ratio,
+        subsample_min,
+        subsample_max,
+    );
+
+    // get the vt matrix from the svd of the subsampled barycenters
+    let vt = compute_vt(sub_bary_mat.as_ref());
+    let vtref = vt.as_ref();
+
+    let w_offset = vtref * weighted_centroid_offset(bary_mat, simplex_weights).transpose();
+    let mut tx = IntoNdarray::into_ndarray(vtref).into_owned();
+    compute_heur_fix(w_offset).dot(&tx)
 }

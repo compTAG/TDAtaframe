@@ -21,7 +21,7 @@ impl<T> SimplexList for Array2<T> {
     }
 
     fn dim(&self) -> usize {
-        self.shape()[1]
+        self.shape()[1] + 1
     }
 }
 
@@ -34,7 +34,7 @@ impl SimplexList for Option<Array2<usize>> {
     }
 
     fn dim(&self) -> usize {
-        self.as_ref().unwrap().shape()[1]
+        self.as_ref().unwrap().shape()[1] + 1
     }
 }
 
@@ -47,7 +47,7 @@ impl<T> SimplexList for ArrayView2<'_, T> {
     }
 
     fn dim(&self) -> usize {
-        self.shape()[1]
+        self.shape()[1] + 1
     }
 }
 
@@ -60,7 +60,7 @@ impl SimplexList for Option<ArrayView2<'_, usize>> {
     }
 
     fn dim(&self) -> usize {
-        self.as_ref().unwrap().shape()[1]
+        self.as_ref().unwrap().shape()[1] + 1
     }
 }
 
@@ -74,7 +74,7 @@ impl SimplexList for Vec<Vec<f32>> {
     }
 
     fn dim(&self) -> usize {
-        self[0].len()
+        self[0].len() + 1
     }
 }
 
@@ -88,7 +88,7 @@ impl SimplexList for Vec<Vec<usize>> {
     }
 
     fn dim(&self) -> usize {
-        self[0].len()
+        self[0].len() + 1
     }
 }
 
@@ -102,7 +102,7 @@ impl SimplexList for BTensor {
     }
 
     fn dim(&self) -> usize {
-        self.size()[1] as usize
+        self.size()[1] as usize + 1
     }
 }
 
@@ -110,7 +110,7 @@ pub trait Complex {
     type VRep;
     type SRep;
 
-    // Return the top dimension of this simplicial complex.
+    // Return the dimension (k) of this simplicial complex.
     fn size(&self) -> usize;
 
     // Get the size of the embedded dimension
