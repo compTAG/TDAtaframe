@@ -37,7 +37,18 @@ class MapArgs(BaseModel):
     subsample_ratio: float  # The ratio of points to use for computing a mapping
     subsample_min: int  # Restricts the minimum number of points after subsampling.
     subsample_max: int  # The maximum number of points to use for subsampling.
-    eps: Optional[float]  # If given, a threshold for which to heuristically fix a map.
+
+
+class MapCopyArgs(BaseModel):
+    """Info about how to map a weighted simplicial complex, when we want to see all possible maps given some confidence value."""
+
+    align_dimension: int  # The dimension of simplices to use for computing the mapping.
+    subsample_ratio: float  # The ratio of points to use for computing a mapping
+    subsample_min: int  # Restricts the minimum number of points after subsampling.
+    subsample_max: int  # The maximum number of points to use for subsampling.
+    eps: Optional[
+        float
+    ]  # If given, a threshold for which to heuristically fix a map. This is the referred confidence value
     copies: bool  # Whether to return all rotated + reflected copies of a map.
 
 

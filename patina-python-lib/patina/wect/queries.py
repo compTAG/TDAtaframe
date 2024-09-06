@@ -11,13 +11,13 @@ This whole pipeline can be called using compute_db_entry().
 import polars as pl
 
 from ..utils import unflatten_to_matrix
-from ..params import MapArgs, WectArgs, WeightedComplexInfo
-from .register import wect, pre_align_wect
+from ..params import MapArgs, WectArgs, WeightedComplexInfo, MapCopyArgs
+from .register import pre_align_copy_wect, wect, pre_align_wect
 
 
-def premapped_wects(
+def premapped_copy_wects(
     wci: WeightedComplexInfo,
-    ma: MapArgs,
+    ma: MapCopyArgs,
     wa: WectArgs,
 ) -> pl.Expr:
     """Compute the WECTs for the given simplices and weights.
@@ -36,7 +36,7 @@ def premapped_wects(
     Returns:
         A column of WECTs. Each WECT is a flattened matrix.
     """
-    wects = pre_align_wect(
+    wects = pre_align_copy_wect(
         pl.col(wci.simplices),
         pl.col(wci.weights),
         provided_simplices=wci.provided_simplices,
@@ -58,6 +58,41 @@ def premapped_wects(
     )  # now (n)-list of num_height * num_direction flattened matrices
 
     return wects
+
+
+def premapped_wects(
+    wci: WeightedComplexInfo,
+    ma: MapArgs,
+    wa: WectArgs,
+) -> pl.Expr:
+    """Compute the WECT for the given simplices and weights.
+
+    Before computing the WECTs, the mesh is mapped to point the weighted centroid
+    vector in the positive ndrant.
+
+    Args:
+        wci: Information about the simplices and weights of the mesh.
+        ma: Arguments for the mapping of the mesh.
+        wa: Arguments for the WECTs.
+
+    Returns:
+        A column of WECTs. Each WECT is a flattened matrix.
+    """
+    wects = pre_align_wect(
+        pl.col(wci.simplices),
+        pl.col(wci.weights),
+        provided_simplices=wci.provided_simplices,
+        provided_weights=wci.provided_weights,
+        embedded_dimension=wci.vdim,
+        num_heights=wa.steps,
+        num_directions=wa.directions,
+        align_dimension=ma.align_dimension,
+        subsample_ratio=ma.subsample_ratio,
+        subsample_min=ma.subsample_min,
+        subsample_max=ma.subsample_max,
+    )
+
+    return wects  # flattened wect
 
 
 # def _get_embedding_expr(

@@ -233,6 +233,7 @@ pub fn premapped_wect(inputs: &[Series], kwargs: PremappedWectArgs) -> PolarsRes
         let wect = tensor_complex.pre_rot_wect(&wp, tx);
         tensor_to_flat(&wect)
     };
+    iter_complex(&inputs[0], &inputs[1], vdim, psimps, pweights, closure)
 }
 
 #[derive(Clone, Deserialize)]
