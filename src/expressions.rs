@@ -2,8 +2,8 @@ use std::collections::VecDeque;
 
 use crate::complex::{WeightedOptComplex, WeightedTensorComplex};
 use crate::complex_interpolation::Interpolate;
-use crate::complex_mapping::PreMappable;
-use crate::complex_mapping::{compute_barycenters, compute_maps_svd};
+use crate::complex_mapping::{compute_barycenters, compute_maps_svd_copies};
+use crate::complex_mapping::{compute_map_svd, PreMappable};
 use crate::io::{iter_complex, iter_vert_simp, iter_vert_simp_weight};
 use crate::tensorwect::{TensorWect, WECTParams};
 use crate::utils::{array2_to_tensor, tensor_to_array2, tensor_to_flat};
@@ -43,12 +43,10 @@ struct MapsSvdArgs {
     subsample_ratio: f32,
     subsample_min: usize,
     subsample_max: usize,
-    eps: Option<f32>,
-    copies: bool,
 }
-
+/// Compute the SVD maps for a given complex (given by verts, simps weights)
 #[polars_expr(output_type_func=same_output_type)] // TODO: when unflattened, need to change output
-pub fn maps_svd(inputs: &[Series], kwargs: MapsSvdArgs) -> PolarsResult<Series> {
+pub fn map_svd(inputs: &[Series], kwargs: MapsSvdArgs) -> PolarsResult<Series> {
     iter_vert_simp_weight(
         &inputs[0],
         &inputs[1],
@@ -56,7 +54,45 @@ pub fn maps_svd(inputs: &[Series], kwargs: MapsSvdArgs) -> PolarsResult<Series> 
         kwargs.embedded_dimension,
         kwargs.simplex_dimension,
         |va, sa, w| {
-            let maps: Vec<Array2<f32>> = compute_maps_svd(
+            let map: Array2<f32> = compute_map_svd(
+                // TODO: unhardcode f32
+                &va.view(),
+                &sa.view(),
+                w,
+                kwargs.subsample_ratio,
+                kwargs.subsample_min,
+                kwargs.subsample_max,
+            );
+
+            // flatten
+            map.into_raw_vec()
+        },
+    )
+}
+
+#[derive(Clone, Copy, Deserialize)]
+struct MapsSvdCopyArgs {
+    embedded_dimension: usize,
+    simplex_dimension: usize,
+    subsample_ratio: f32,
+    subsample_min: usize,
+    subsample_max: usize,
+    eps: Option<f32>,
+    copies: bool,
+}
+/// Compute the SVD maps for a given complex (given by verts, simps weights),
+/// generating rotated + reflected copies
+/// of the Vt matrix.
+#[polars_expr(output_type_func=same_output_type)] // TODO: when unflattened, need to change output
+pub fn maps_svd_copies(inputs: &[Series], kwargs: MapsSvdCopyArgs) -> PolarsResult<Series> {
+    iter_vert_simp_weight(
+        &inputs[0],
+        &inputs[1],
+        &inputs[2],
+        kwargs.embedded_dimension,
+        kwargs.simplex_dimension,
+        |va, sa, w| {
+            let maps: Vec<Array2<f32>> = compute_maps_svd_copies(
                 // TODO: unhardcode f32
                 &va.view(),
                 &sa.view(),
@@ -77,8 +113,18 @@ pub fn maps_svd(inputs: &[Series], kwargs: MapsSvdArgs) -> PolarsResult<Series> 
     )
 }
 
+fn struct_use_weights(input_fields: &[Field]) -> PolarsResult<Field> {
+    let field = &input_fields[1];
+    match field.data_type() {
+        DataType::Struct(fields) => {
+            Ok(fields[0].clone()) // use type of vertex weights
+        }
+        _ => unreachable!(),
+    }
+}
+
 #[derive(Clone, Deserialize)]
-struct PremappedWectArgs {
+struct PremappedCopyWectArgs {
     embedded_dimension: i64,
     num_heights: i64,
     num_directions: i64,
@@ -92,18 +138,13 @@ struct PremappedWectArgs {
     copies: bool,
 }
 
-fn struct_use_weights(input_fields: &[Field]) -> PolarsResult<Field> {
-    let field = &input_fields[1];
-    match field.data_type() {
-        DataType::Struct(fields) => {
-            Ok(fields[0].clone()) // use type of vertex weights
-        }
-        _ => unreachable!(),
-    }
-}
-
+// compute the wect for a given complex, by first computing the premaps
+// and then applying the wect. useful for generating all possible rotated wects
 #[polars_expr(output_type_func=struct_use_weights)]
-pub fn premapped_wect(inputs: &[Series], kwargs: PremappedWectArgs) -> PolarsResult<Series> {
+pub fn premapped_copy_wect(
+    inputs: &[Series],
+    kwargs: PremappedCopyWectArgs,
+) -> PolarsResult<Series> {
     let device = tch::Device::cuda_if_available();
     let wp = WECTParams::new(
         kwargs.embedded_dimension,
@@ -119,7 +160,7 @@ pub fn premapped_wect(inputs: &[Series], kwargs: PremappedWectArgs) -> PolarsRes
 
     let closure = |complex: &mut WeightedOptComplex<f32, f32>| {
         complex.interpolate_missing_down();
-        let pre_rots = complex.premap(
+        let pre_rots = complex.premap_copy(
             kwargs.align_dimension,
             kwargs.subsample_ratio,
             kwargs.subsample_min,
@@ -147,6 +188,54 @@ pub fn premapped_wect(inputs: &[Series], kwargs: PremappedWectArgs) -> PolarsRes
 }
 
 #[derive(Clone, Deserialize)]
+struct PremappedWectArgs {
+    embedded_dimension: i64,
+    num_heights: i64,
+    num_directions: i64,
+    provided_simplices: Vec<usize>, // the dimensions of simplices provied, in order, starting with 1
+    provided_weights: Vec<usize>,   // the dimensions of weights provided, in order
+    align_dimension: usize,
+    subsample_ratio: f32,
+    subsample_min: usize,
+    subsample_max: usize,
+}
+
+// compute the wect for a given complex, by first computing the premaps
+// and then applying the wect. useful for generating all possible rotated wects
+#[polars_expr(output_type_func=struct_use_weights)]
+pub fn premapped_wect(inputs: &[Series], kwargs: PremappedWectArgs) -> PolarsResult<Series> {
+    let device = tch::Device::cuda_if_available();
+    let wp = WECTParams::new(
+        kwargs.embedded_dimension,
+        kwargs.num_directions,
+        kwargs.num_heights,
+        device,
+    );
+
+    let psimps = &kwargs.provided_simplices;
+    let pweights = &kwargs.provided_weights;
+
+    let vdim = kwargs.embedded_dimension as usize;
+
+    let closure = |complex: &mut WeightedOptComplex<f32, f32>| {
+        complex.interpolate_missing_down();
+        let pre_rot = complex.premap(
+            kwargs.align_dimension,
+            kwargs.subsample_ratio,
+            kwargs.subsample_min,
+            kwargs.subsample_max,
+        );
+
+        let device = wp.dirs.device();
+        let tensor_complex = WeightedTensorComplex::from(&complex, device);
+
+        let tx = array2_to_tensor(&pre_rot, device);
+        let wect = tensor_complex.pre_rot_wect(&wp, tx);
+        tensor_to_flat(&wect)
+    };
+}
+
+#[derive(Clone, Deserialize)]
 struct WectArgs {
     embedded_dimension: i64,
     num_heights: i64,
@@ -155,6 +244,7 @@ struct WectArgs {
     provided_weights: Vec<usize>,   // the dimensions of weights provided, in order
 }
 
+// compute the wect for a given complex
 #[polars_expr(output_type_func=struct_use_weights)]
 pub fn wect(inputs: &[Series], kwargs: WectArgs) -> PolarsResult<Series> {
     let device = tch::Device::cuda_if_available();
