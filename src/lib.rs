@@ -123,11 +123,7 @@ mod tests {
             complex_mapping::compute_barycenters(&oct.vertices.view(), &oct.triangles.view());
 
         let barymat = IntoFaer::into_faer(barycenters.view());
-        let wo = complex_mapping::weighted_centroid_offset(
-            barymat,
-            &oct.weights,
-            Mat::<f32>::identity(3, 3).as_ref(),
-        );
+        let wo = complex_mapping::weighted_centroid_offset(barymat, &oct.weights);
         let target: Row<f32> = row![0.0, 0.0, 0.0];
         assert_eq!(wo, target);
 
