@@ -25,4 +25,5 @@ itertools = "0.13.0"
 [profile.dev.package.faer]
 opt-level = 3
 
-[features]
+[toolchain]
+channel = "nightly"

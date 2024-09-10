@@ -169,8 +169,11 @@ def test_wect() -> None:
     print(wdf.explain(streaming=True))
     wdf = wdf.collect()
 
-    wect = wdf.to_dict()["wects"].to_numpy()
-    print(wect)
+    print(wdf)
+
+    wects = wdf.to_dict()["wects"].to_numpy()
+    for wect in wects:
+        print(wect.reshape(25, 20))
 
 
 # TODO: Add assertions for WECT queries
