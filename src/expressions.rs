@@ -115,7 +115,7 @@ pub fn maps_svd_copies(inputs: &[Series], kwargs: MapsSvdCopyArgs) -> PolarsResu
 
 fn struct_use_weights(input_fields: &[Field]) -> PolarsResult<Field> {
     let field = &input_fields[1];
-    match field.data_type() {
+    match field.dtype() {
         DataType::Struct(fields) => {
             Ok(fields[0].clone()) // use type of vertex weights
         }

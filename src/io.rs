@@ -52,7 +52,7 @@ pub fn iter_vert_simp_weight(
             let prim = Box::new(PrimitiveArray::<f32>::from_vec(out));
             Some(prim)
         })
-        .collect_ca_with_dtype("", DataType::List(Box::new(DataType::Float32)));
+        .collect_ca_with_dtype("".into(), DataType::List(Box::new(DataType::Float32)));
 
     Ok(out.into_series())
 }
@@ -94,7 +94,7 @@ pub fn iter_vert_simp(
             let prim = Box::new(PrimitiveArray::<f32>::from_vec(out));
             Some(prim)
         })
-        .collect_ca_with_dtype("", DataType::List(Box::new(DataType::Float32)));
+        .collect_ca_with_dtype("".into(), DataType::List(Box::new(DataType::Float32)));
 
     Ok(out.into_series())
 }
@@ -206,6 +206,6 @@ pub fn iter_complex(
             let prim = Box::new(PrimitiveArray::<f32>::from_vec(out));
             Some(prim)
         })
-        .collect_ca_with_dtype("", DataType::List(Box::new(DataType::Float32)));
+        .collect_ca_with_dtype("".into(), DataType::List(Box::new(DataType::Float32)));
     Ok(out.into_series())
 }
