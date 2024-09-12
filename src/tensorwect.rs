@@ -38,13 +38,11 @@ pub trait TensorWect {
 impl TensorWect for WeightedTensorComplex {
     type RotMat = Tensor;
     fn wect(&self, params: &WECTParams) -> Tensor {
-        wect(self, self.get_vertices().shallow_clone(), params)
+        wect(self, None, params)
     }
 
     fn pre_rot_wect(&self, params: &WECTParams, tx: Self::RotMat) -> Tensor {
-        let vertex_coords = self.get_vertices();
-        let rotated_vertex_coords = vertex_coords.matmul(&tx.transpose(0, 1));
-        wect(self, rotated_vertex_coords, params)
+        wect(self, Some(tx), params)
     }
 }
 
@@ -107,7 +105,11 @@ fn sparsify_index_tensor(params: &WECTParams, index_tensor: &Tensor, weight_dtyp
     Tensor::sparse_coo_tensor_indices_size(&indices, &values, &shape, (Kind::Float, device), false)
 }
 
-fn wect(complex: &WeightedTensorComplex, vertex_coords: Tensor, params: &WECTParams) -> Tensor {
+fn wect(complex: &WeightedTensorComplex, tx: Option<Tensor>, params: &WECTParams) -> Tensor {
+    let vertex_coords = match tx {
+        Some(tx) => complex.get_vertices().matmul(&tx.transpose(0, 1)),
+        None => complex.get_vertices().shallow_clone(),
+    };
     let vertex_weights = complex.get_weights_dim(0);
     let v_indices = vertex_indices(&params, &vertex_coords);
     let v_graphs = sparsify_index_tensor(&params, &v_indices, Kind::Float);
@@ -158,14 +160,9 @@ fn sample3d(num_dirs: i64, device: Device) -> Tensor {
         1.0 - 1.0 / num_dirs as f64,
         -1.0 + 1.0 / num_dirs as f64,
         num_dirs,
-        (Kind::Float, Device::Cpu),
+        (Kind::Float, device),
     );
-    let theta = Tensor::linspace(
-        0.0,
-        2.0 * 3.14159265359,
-        num_dirs,
-        (Kind::Float, Device::Cpu),
-    );
+    let theta = Tensor::linspace(0.0, 2.0 * 3.14159265359, num_dirs, (Kind::Float, device));
     let exp = Tensor::scalar_tensor(2.0, (Kind::Int64, device));
     let r: Tensor = (1.0 as f64 - z.pow(&exp)).sqrt();
     let x = &r * theta.cos();

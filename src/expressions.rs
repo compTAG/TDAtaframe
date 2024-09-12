@@ -145,6 +145,7 @@ pub fn premapped_copy_wect(
     inputs: &[Series],
     kwargs: PremappedCopyWectArgs,
 ) -> PolarsResult<Series> {
+    tch::maybe_init_cuda();
     let device = tch::Device::cuda_if_available();
     let wp = WECTParams::new(
         kwargs.embedded_dimension,
@@ -204,6 +205,7 @@ struct PremappedWectArgs {
 // and then applying the wect. useful for generating all possible rotated wects
 #[polars_expr(output_type_func=struct_use_weights)]
 pub fn premapped_wect(inputs: &[Series], kwargs: PremappedWectArgs) -> PolarsResult<Series> {
+    tch::maybe_init_cuda();
     let device = tch::Device::cuda_if_available();
     let wp = WECTParams::new(
         kwargs.embedded_dimension,
@@ -248,7 +250,9 @@ struct WectArgs {
 // compute the wect for a given complex
 #[polars_expr(output_type_func=struct_use_weights)]
 pub fn wect(inputs: &[Series], kwargs: WectArgs) -> PolarsResult<Series> {
+    tch::maybe_init_cuda();
     let device = tch::Device::cuda_if_available();
+    println!("Using device: {:?}", device);
     let wp = WECTParams::new(
         kwargs.embedded_dimension,
         kwargs.num_directions,
