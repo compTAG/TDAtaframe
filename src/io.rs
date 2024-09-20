@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use crate::complex::WeightedOptComplex;
+use crate::complex_opt::{OptComplex, WeightedOptComplex};
 use ndarray::{Array2, ArrayView2};
 // use polars_core::utils::rayon::iter::{IndexedParallelIterator, IntoParallelIterator, MultiZip};
 // use polars_core::utils::rayon::prelude::*;

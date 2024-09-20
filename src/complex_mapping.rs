@@ -9,7 +9,8 @@ use rand::seq::SliceRandom;
 
 use rand::thread_rng;
 
-use crate::complex::{Complex, Weighted, WeightedOptComplex};
+use crate::complex::{Complex, Weighted};
+use crate::complex_opt::WeightedOptComplex;
 
 pub trait PreMappable {
     type Output;

@@ -1,6 +1,7 @@
 mod complex;
-mod complex_interpolation;
 pub mod complex_mapping;
+mod complex_opt;
+mod complex_tensor;
 mod io;
 mod tensorwect;
 mod utils;

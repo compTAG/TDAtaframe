@@ -1,5 +1,7 @@
 use crate::{
-    complex::{Complex, Weighted, WeightedOptComplex, WeightedTensorComplex},
+    complex::{Complex, Weighted},
+    complex_opt::WeightedOptComplex,
+    complex_tensor::WeightedTensorComplex,
     utils::array2_to_tensor,
 };
 use ndarray::Array2;
