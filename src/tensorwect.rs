@@ -1,7 +1,7 @@
 use crate::{
     complex::{Complex, Weighted},
     complex_opt::WeightedOptComplex,
-    complex_tensor::WeightedTensorComplex,
+    complex_tensor::{TensorComplex, WeightedTensorComplex},
     utils::array2_to_tensor,
 };
 use ndarray::Array2;
@@ -107,6 +107,45 @@ fn sparsify_index_tensor(params: &WECTParams, index_tensor: &Tensor, weight_dtyp
     Tensor::sparse_coo_tensor_indices_size(&indices, &values, &shape, (Kind::Float, device), false)
 }
 
+fn ect(complex: &TensorComplex, tx: Option<Tensor>, params: &WECTParams) -> Tensor {
+    let vertex_coords = match tx {
+        Some(tx) => complex.get_vertices().matmul(&tx.transpose(0, 1)),
+        None => complex.get_vertices().shallow_clone(),
+    };
+    let v_indices = vertex_indices(&params, &vertex_coords);
+    let v_graphs = sparsify_index_tensor(&params, &v_indices, Kind::Int64);
+    let mut contributions = v_graphs.internal_sparse_sum_dim(vec![0]);
+
+    for dim in 1..=complex.size() {
+        let simplex_tensor = &complex.get_simplices_dim(dim);
+
+        let v_pair_indices = Tensor::empty(
+            // HACK: loop through and assign instead of advanced
+            // indexing
+            vec![
+                simplex_tensor.size()[0],
+                simplex_tensor.size()[1],
+                v_indices.size()[1],
+            ],
+            (Kind::Int64, simplex_tensor.device()),
+        );
+
+        for i in 0..simplex_tensor.size()[0] {
+            let indices = simplex_tensor.get(i);
+            let indexed_values = v_indices.index_select(0, &indices);
+            v_pair_indices.get(i).copy_(&indexed_values);
+        }
+
+        let simplex_indices = v_pair_indices.amax(&[1], false);
+
+        let simplex_graphs = sparsify_index_tensor(&params, &simplex_indices, Kind::Int64);
+        let simplex_contributions = simplex_graphs.internal_sparse_sum_dim(vec![0]);
+        contributions += simplex_contributions * (-1i64).pow(dim as u32);
+    }
+
+    let ect = contributions.to_dense(None, false).cumsum(1, Kind::Float);
+    ect
+}
 fn wect(complex: &WeightedTensorComplex, tx: Option<Tensor>, params: &WECTParams) -> Tensor {
     let vertex_coords = match tx {
         Some(tx) => complex.get_vertices().matmul(&tx.transpose(0, 1)),

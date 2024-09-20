@@ -134,20 +134,20 @@ pub struct SimplicialComplex<V, S> {
 }
 
 impl<V, S> SimplicialComplex<V, S> {
-    fn new(vertices: V) -> Self {
+    pub fn new(vertices: V) -> Self {
         Self {
             vertices,
             simplices: Vec::new(),
         }
     }
-    fn with_dims(vertices: V, dim: usize) -> Self {
+    pub fn with_dims(vertices: V, dim: usize) -> Self {
         Self {
             vertices,
             simplices: Vec::with_capacity(dim),
         }
     }
 
-    fn from_simplices(vertices: V, simplices: Vec<S>) -> Self {
+    pub fn from_simplices(vertices: V, simplices: Vec<S>) -> Self {
         Self {
             vertices,
             simplices,

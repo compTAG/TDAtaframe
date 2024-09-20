@@ -1,4 +1,7 @@
-use crate::complex::{Complex, SimplexList, Weighted, WeightedSimplicialComplex};
+use crate::complex::{
+    Complex, SimplexList, SimplicialComplex, Weighted, WeightedSimplicialComplex,
+};
+use crate::complex_opt::OptComplex;
 use crate::complex_opt::WeightedOptComplex;
 use crate::utils::array2_to_tensor;
 use std::rc::Rc;
@@ -68,5 +71,31 @@ impl WeightedSimplicialComplex<BTensor, BTensor, BTensor> {
         });
 
         Self::from_simplices(vertices_t, simplices, weights)
+    }
+}
+
+pub type TensorComplex = SimplicialComplex<BTensor, BTensor>;
+impl SimplicialComplex<BTensor, BTensor> {
+    pub fn from<V>(complex: &OptComplex<V>, device: Device) -> Self
+    where
+        V: tch::kind::Element,
+    {
+        let dim = complex.size();
+
+        let vertices = complex.get_vertices();
+        let vertices_t = Rc::new(Box::new(array2_to_tensor(vertices, device)));
+
+        let mut simplices: Vec<Rc<Box<Tensor>>> = Vec::with_capacity(dim);
+
+        (1..=dim).for_each(|k| {
+            let s = complex.get_simplices_dim(k);
+            let casted_simplices = s.as_ref().unwrap().mapv(|x| x as i64);
+
+            let simplices_t = array2_to_tensor(&casted_simplices, device); // TODO: do we
+                                                                           // manually cast usize to u32 or u64?
+            simplices.push(Rc::new(Box::new(simplices_t)));
+        });
+
+        Self::from_simplices(vertices_t, simplices)
     }
 }
