@@ -334,6 +334,7 @@ where
 pub type WeightedArrayComplex = WeightedSimplicialComplex<Array2<f32>, Array2<usize>, Vec<f32>>;
 pub type WeightedOptComplex<P, W> =
     WeightedSimplicialComplex<Array2<P>, Option<Array2<usize>>, Option<Vec<W>>>;
+pub type OptComplex<P> = SimplicialComplex<Array2<P>, Option<Array2<usize>>>;
 
 impl<P, W> WeightedOptComplex<P, W> {
     pub fn missing_simplex_dim(&self, dim: usize) -> bool {
@@ -346,6 +347,16 @@ impl<P, W> WeightedOptComplex<P, W> {
 
     pub fn has_missing_dims(&self) -> bool {
         (1..=self.size()).any(|x| self.missing_simplex_dim(x) || self.missing_weight_dim(x))
+    }
+}
+
+impl<P> OptComplex<P> {
+    pub fn missing_simplex_dim(&self, dim: usize) -> bool {
+        self.simplices[dim - 1].is_none()
+    }
+
+    pub fn has_missing_dims(&self) -> bool {
+        (1..=self.size()).any(|x| self.missing_simplex_dim(x))
     }
 }
 
@@ -405,7 +416,6 @@ impl WeightedSimplicialComplex<BTensor, BTensor, BTensor> {
 
 //TODO: testing
 fn test_new_cplex() {
-    println!("Hello, world!");
     let vertices: Vec<Vec<f32>> = vec![
         vec![0.0, 0.0],
         vec![1.0, 0.0],

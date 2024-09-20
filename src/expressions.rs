@@ -4,7 +4,7 @@ use crate::complex::{WeightedOptComplex, WeightedTensorComplex};
 use crate::complex_interpolation::Interpolate;
 use crate::complex_mapping::{compute_barycenters, compute_maps_svd_copies};
 use crate::complex_mapping::{compute_map_svd, PreMappable};
-use crate::io::{iter_complex, iter_vert_simp, iter_vert_simp_weight};
+use crate::io::{iter_vert_simp, iter_vert_simp_weight, iter_weighted_complex};
 use crate::tensorwect::{TensorWect, WECTParams};
 use crate::utils::{array2_to_tensor, tensor_to_array2, tensor_to_flat};
 use ndarray::{Array2, ArrayView2};
@@ -185,7 +185,7 @@ pub fn premapped_copy_wect(
             .collect::<Vec<_>>()
     };
 
-    iter_complex(&inputs[0], &inputs[1], vdim, psimps, pweights, closure)
+    iter_weighted_complex(&inputs[0], &inputs[1], vdim, psimps, pweights, closure)
 }
 
 #[derive(Clone, Deserialize)]
@@ -235,7 +235,7 @@ pub fn premapped_wect(inputs: &[Series], kwargs: PremappedWectArgs) -> PolarsRes
         let wect = tensor_complex.pre_rot_wect(&wp, tx);
         tensor_to_flat(&wect)
     };
-    iter_complex(&inputs[0], &inputs[1], vdim, psimps, pweights, closure)
+    iter_weighted_complex(&inputs[0], &inputs[1], vdim, psimps, pweights, closure)
 }
 
 #[derive(Clone, Deserialize)]
@@ -275,5 +275,45 @@ pub fn wect(inputs: &[Series], kwargs: WectArgs) -> PolarsResult<Series> {
         tensor_to_flat(&wect)
     };
 
-    iter_complex(&inputs[0], &inputs[1], vdim, psimps, pweights, closure)
+    iter_weighted_complex(&inputs[0], &inputs[1], vdim, psimps, pweights, closure)
+}
+
+#[derive(Clone, Deserialize)]
+struct EctArgs {
+    embedded_dimension: i64,
+    num_heights: i64,
+    num_directions: i64,
+    provided_simplices: Vec<usize>, // the dimensions of simplices provied, in order, starting with 1
+    provided_weights: Vec<usize>,   // the dimensions of weights provided, in order
+}
+
+// compute the wect for a given complex
+#[polars_expr(output_type_func=struct_use_weights)]
+pub fn ect(inputs: &[Series], kwargs: EctArgs) -> PolarsResult<Series> {
+    tch::maybe_init_cuda();
+    let device = tch::Device::cuda_if_available();
+    println!("Using device: {:?}", device);
+    let wp = WECTParams::new(
+        kwargs.embedded_dimension,
+        kwargs.num_directions,
+        kwargs.num_heights,
+        device,
+    );
+
+    let psimps = &kwargs.provided_simplices;
+    let pweights = &kwargs.provided_weights;
+
+    let vdim = kwargs.embedded_dimension as usize;
+
+    let closure = |complex: &mut OptComplex<f32, f32>| {
+        complex.interpolate_missing_down();
+
+        let device = wp.dirs.device();
+        let tensor_complex = TensorComplex::from(&complex, device);
+
+        let ect: tch::Tensor = tensor_complex.ect(&wp);
+        tensor_to_flat(&ect)
+    };
+
+    iter_weighted_complex(&inputs[0], &inputs[1], vdim, psimps, pweights, closure)
 }
