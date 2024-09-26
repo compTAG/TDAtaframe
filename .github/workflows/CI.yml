@@ -11,96 +11,96 @@ permissions:
   contents: read
 
 jobs:
-  linux:
-    runs-on: ubuntu-latest
-    container: quay.io/pypa/manylinux_2_28_x86_64:latest 
-    strategy:
-      matrix:
-        platform:
-          - x86_64
-    steps:
-      - uses: actions/checkout@v4
-      - name: Verify Python and Pip installation
-        run: |
-          python3.12 --version
-          python3.12 -m ensurepip
-          python3.11 -m ensurepip
-      - name: Install nightly Rust
-        run: curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
-
-      - name: Set up Rust toolchain and dependencies
-        run: source $HOME/.cargo/env
-
-      - name: Install unzip
-        run: yum install -y unzip curl
-
-      - name: Download and extract LibTorch
-        run: |
-          curl -L https://download.pytorch.org/libtorch/cu124/libtorch-cxx11-abi-shared-with-deps-2.4.0%2Bcu124.zip -o libtorch.zip
-          unzip -o libtorch.zip -d $(pwd)
-          rm libtorch.zip
-          echo "LIBTORCH=$(pwd)/libtorch" >> $GITHUB_ENV
-          echo "LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
-
-      
-
-      - name: Install Python maturin and build wheels for Python 3.11 and 3.12
-        run: |
-          source $HOME/.cargo/env
-          export LIBTORCH=$(pwd)/libtorch
-          export LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH
-          for PYBIN in /opt/python/cp311*/bin /opt/python/cp312*/bin; do
-            "${PYBIN}/pip" install maturin
-            "${PYBIN}/python" -m maturin build -m Cargo.toml --release --manylinux 2_28
-          done
-
-      # - name: Auditwheel repair
-      #   run: |
-      #     for wheel in target/wheels/*.whl; do
-      #         auditwheel show "${wheel}"
-      #         auditwheel repair "${wheel}" --plat manylinux_2_31_${{ matrix.platform }}
-      #     done
-
-      - name: Upload wheels
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheels-linux-${{ matrix.platform }}
-          path: target/wheels 
-
-
-  macos:
-    runs-on: macos-14
-    strategy:
-      matrix:
-        platform:
-          - aarch64
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Install nightly Rust
-        run: curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
-        
-      - name: Install LibTorch
-        run: .github/workflows/install_libtorch_macsilicon.sh
-         
-      - name: Set environment variables
-        run: |
-          echo "LIBTORCH=$(pwd)/libtorch" >> $GITHUB_ENV
-          echo "LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
-      
-      - name: Install Python maturin and build wheels
-        run: |
-          source $HOME/.cargo/env
-          export LIBTORCH=$(pwd)/libtorch
-          export LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH
-          pip install maturin
-          maturin build -m Cargo.toml --release
-        
-      - name: Upload wheels
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheels-macos-${{ matrix.platform }}
-          path: target/wheels
+  # linux:
+  #   runs-on: ubuntu-latest
+  #   container: quay.io/pypa/manylinux_2_28_x86_64:latest 
+  #   strategy:
+  #     matrix:
+  #       platform:
+  #         - x86_64
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Verify Python and Pip installation
+  #       run: |
+  #         python3.12 --version
+  #         python3.12 -m ensurepip
+  #         python3.11 -m ensurepip
+  #     - name: Install nightly Rust
+  #       run: curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
+  #
+  #     - name: Set up Rust toolchain and dependencies
+  #       run: source $HOME/.cargo/env
+  #
+  #     - name: Install unzip
+  #       run: yum install -y unzip curl
+  #
+  #     - name: Download and extract LibTorch
+  #       run: |
+  #         curl -L https://download.pytorch.org/libtorch/cu124/libtorch-cxx11-abi-shared-with-deps-2.4.0%2Bcu124.zip -o libtorch.zip
+  #         unzip -o libtorch.zip -d $(pwd)
+  #         rm libtorch.zip
+  #         echo "LIBTORCH=$(pwd)/libtorch" >> $GITHUB_ENV
+  #         echo "LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+  #
+  #     
+  #
+  #     - name: Install Python maturin and build wheels for Python 3.11 and 3.12
+  #       run: |
+  #         source $HOME/.cargo/env
+  #         export LIBTORCH=$(pwd)/libtorch
+  #         export LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH
+  #         for PYBIN in /opt/python/cp311*/bin /opt/python/cp312*/bin; do
+  #           "${PYBIN}/pip" install maturin
+  #           "${PYBIN}/python" -m maturin build -m Cargo.toml --release --manylinux 2_28
+  #         done
+  #
+  #     # - name: Auditwheel repair
+  #     #   run: |
+  #     #     for wheel in target/wheels/*.whl; do
+  #     #         auditwheel show "${wheel}"
+  #     #         auditwheel repair "${wheel}" --plat manylinux_2_31_${{ matrix.platform }}
+  #     #     done
+  #
+  #     - name: Upload wheels
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: wheels-linux-${{ matrix.platform }}
+  #         path: target/wheels 
+  #
+  #
+  # macos:
+  #   runs-on: macos-14
+  #   strategy:
+  #     matrix:
+  #       platform:
+  #         - aarch64
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     
+  #     - name: Install nightly Rust
+  #       run: curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
+  #       
+  #     - name: Install LibTorch
+  #       run: .github/workflows/install_libtorch_macsilicon.sh
+  #        
+  #     - name: Set environment variables
+  #       run: |
+  #         echo "LIBTORCH=$(pwd)/libtorch" >> $GITHUB_ENV
+  #         echo "LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+  #     
+  #     - name: Install Python maturin and build wheels
+  #       run: |
+  #         source $HOME/.cargo/env
+  #         export LIBTORCH=$(pwd)/libtorch
+  #         export LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH
+  #         pip install maturin
+  #         maturin build -m Cargo.toml --release
+  #       
+  #     - name: Upload wheels
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: wheels-macos-${{ matrix.platform }}
+  #         path: target/wheels
 
   sdist:
     runs-on: ubuntu-latest
@@ -120,24 +120,24 @@ jobs:
 
   release:
     name: Release
-    needs: ['sdist', 'linux', 'macos']
+    # needs: ['sdist', 'linux', 'macos']
+    needs: ['sdist']
     runs-on: ubuntu-latest
-    # if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
     steps:
       - uses: actions/download-artifact@v4
         with:
           name: wheels-sdist
           path: dist
 
-      - uses: actions/download-artifact@v4
-        with:
-          name: wheels-linux-x86_64
-          path: dist
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: wheels-macos-aarch64
-          path: dist
+      # - uses: actions/download-artifact@v4
+      #   with:
+      #     name: wheels-linux-x86_64
+      #     path: dist
+      #
+      # - uses: actions/download-artifact@v4
+      #   with:
+      #     name: wheels-macos-aarch64
+      #     path: dist
 
             
       - name: Publish to PyPI
