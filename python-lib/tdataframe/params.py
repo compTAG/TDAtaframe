@@ -52,8 +52,8 @@ class MapCopyArgs(BaseModel):
     copies: bool  # Whether to return all rotated + reflected copies of a map.
 
 
-class WectArgs(BaseModel):
-    """Parameters for computing the wect."""
+class EctArgs(BaseModel):
+    """Parameters for computing the (w)ect."""
 
     directions: int  # The number of directions used in computing the wect.
     steps: int  # The number of filtration steps used in computing the wect.

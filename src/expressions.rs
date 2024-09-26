@@ -1,11 +1,11 @@
 use std::collections::VecDeque;
 
-use crate::complex::{WeightedOptComplex, WeightedTensorComplex};
-use crate::complex_interpolation::Interpolate;
 use crate::complex_mapping::{compute_barycenters, compute_maps_svd_copies};
 use crate::complex_mapping::{compute_map_svd, PreMappable};
-use crate::io::{iter_vert_simp, iter_vert_simp_weight, iter_weighted_complex};
-use crate::tensorwect::{TensorWect, WECTParams};
+use crate::complex_opt::{Interpolate, OptComplex, WeightedOptComplex};
+use crate::complex_tensor::{TensorComplex, WeightedTensorComplex};
+use crate::io::{iter_complex, iter_vert_simp, iter_vert_simp_weight, iter_weighted_complex};
+use crate::tensorwect::{ECTParams, TensorEct, TensorWect};
 use crate::utils::{array2_to_tensor, tensor_to_array2, tensor_to_flat};
 use ndarray::{Array2, ArrayView2};
 use serde::Deserialize;
@@ -147,7 +147,7 @@ pub fn premapped_copy_wect(
 ) -> PolarsResult<Series> {
     tch::maybe_init_cuda();
     let device = tch::Device::cuda_if_available();
-    let wp = WECTParams::new(
+    let ep = ECTParams::new(
         kwargs.embedded_dimension,
         kwargs.num_directions,
         kwargs.num_heights,
@@ -170,13 +170,13 @@ pub fn premapped_copy_wect(
             kwargs.copies,
         );
 
-        let device = wp.dirs.device();
+        let device = ep.dirs.device();
         let tensor_complex = WeightedTensorComplex::from(&complex, device);
         pre_rots // apply the wect for each rotation, and flatten the output
             .iter()
             .map(|x| {
                 let tx = array2_to_tensor(x, device);
-                let wect = tensor_complex.pre_rot_wect(&wp, tx);
+                let wect = tensor_complex.pre_rot_wect(&ep, tx);
                 tensor_to_flat(&wect)
             })
             .collect::<Vec<Vec<_>>>()
@@ -207,7 +207,7 @@ struct PremappedWectArgs {
 pub fn premapped_wect(inputs: &[Series], kwargs: PremappedWectArgs) -> PolarsResult<Series> {
     tch::maybe_init_cuda();
     let device = tch::Device::cuda_if_available();
-    let wp = WECTParams::new(
+    let ep = ECTParams::new(
         kwargs.embedded_dimension,
         kwargs.num_directions,
         kwargs.num_heights,
@@ -228,11 +228,11 @@ pub fn premapped_wect(inputs: &[Series], kwargs: PremappedWectArgs) -> PolarsRes
             kwargs.subsample_max,
         );
 
-        let device = wp.dirs.device();
+        let device = ep.dirs.device();
         let tensor_complex = WeightedTensorComplex::from(&complex, device);
 
         let tx = array2_to_tensor(&pre_rot, device);
-        let wect = tensor_complex.pre_rot_wect(&wp, tx);
+        let wect = tensor_complex.pre_rot_wect(&ep, tx);
         tensor_to_flat(&wect)
     };
     iter_weighted_complex(&inputs[0], &inputs[1], vdim, psimps, pweights, closure)
@@ -253,7 +253,7 @@ pub fn wect(inputs: &[Series], kwargs: WectArgs) -> PolarsResult<Series> {
     tch::maybe_init_cuda();
     let device = tch::Device::cuda_if_available();
     println!("Using device: {:?}", device);
-    let wp = WECTParams::new(
+    let ep = ECTParams::new(
         kwargs.embedded_dimension,
         kwargs.num_directions,
         kwargs.num_heights,
@@ -268,10 +268,10 @@ pub fn wect(inputs: &[Series], kwargs: WectArgs) -> PolarsResult<Series> {
     let closure = |complex: &mut WeightedOptComplex<f32, f32>| {
         complex.interpolate_missing_down();
 
-        let device = wp.dirs.device();
+        let device = ep.dirs.device();
         let tensor_complex = WeightedTensorComplex::from(&complex, device);
 
-        let wect: tch::Tensor = tensor_complex.wect(&wp);
+        let wect: tch::Tensor = tensor_complex.wect(&ep);
         tensor_to_flat(&wect)
     };
 
@@ -284,7 +284,6 @@ struct EctArgs {
     num_heights: i64,
     num_directions: i64,
     provided_simplices: Vec<usize>, // the dimensions of simplices provied, in order, starting with 1
-    provided_weights: Vec<usize>,   // the dimensions of weights provided, in order
 }
 
 // compute the wect for a given complex
@@ -293,7 +292,7 @@ pub fn ect(inputs: &[Series], kwargs: EctArgs) -> PolarsResult<Series> {
     tch::maybe_init_cuda();
     let device = tch::Device::cuda_if_available();
     println!("Using device: {:?}", device);
-    let wp = WECTParams::new(
+    let ep = ECTParams::new(
         kwargs.embedded_dimension,
         kwargs.num_directions,
         kwargs.num_heights,
@@ -301,19 +300,18 @@ pub fn ect(inputs: &[Series], kwargs: EctArgs) -> PolarsResult<Series> {
     );
 
     let psimps = &kwargs.provided_simplices;
-    let pweights = &kwargs.provided_weights;
 
     let vdim = kwargs.embedded_dimension as usize;
 
-    let closure = |complex: &mut OptComplex<f32, f32>| {
+    let closure = |complex: &mut OptComplex<f32>| {
         complex.interpolate_missing_down();
 
-        let device = wp.dirs.device();
+        let device = ep.dirs.device();
         let tensor_complex = TensorComplex::from(&complex, device);
 
-        let ect: tch::Tensor = tensor_complex.ect(&wp);
+        let ect: tch::Tensor = tensor_complex.ect(&ep);
         tensor_to_flat(&ect)
     };
 
-    iter_weighted_complex(&inputs[0], &inputs[1], vdim, psimps, pweights, closure)
+    iter_complex(&inputs[0], vdim, psimps, closure)
 }

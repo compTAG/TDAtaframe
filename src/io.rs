@@ -133,8 +133,8 @@ pub fn iter_weighted_complex(
                 .unwrap()
                 .to_vec_null_aware()
                 .left()
-                .unwrap();
-            // i is the index into the Series vector
+                .unwrap(); // TODO: error handle if unrap fails
+                           // i is the index into the Series vector
             let mut simplices: VecDeque<Vec<usize>> = (1..simplex_series.len())
                 .map(|i| -> Vec<usize> {
                     simplex_series[i]
@@ -214,7 +214,7 @@ pub fn iter_complex(
     simplices_s: &Series,
     vdim: usize,
     psimps: &Vec<usize>, //provided simplices, sorted, 1 to k
-    mut complex_fn: impl FnMut(&mut OptComplex<f32, f32>) -> Vec<f32>,
+    mut complex_fn: impl FnMut(&mut OptComplex<f32>) -> Vec<f32>,
 ) -> PolarsResult<Series> {
     if psimps.len() == 0 && psimps[0] == 0 {
         panic!("Provided simplices must be greater than 0");

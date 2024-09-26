@@ -98,4 +98,12 @@ impl SimplicialComplex<BTensor, BTensor> {
 
         Self::from_simplices(vertices_t, simplices)
     }
+
+    pub fn from_weighted<V, W>(complex: &WeightedOptComplex<V, W>, device: Device) -> Self
+    where
+        V: tch::kind::Element,
+        W: tch::kind::Element,
+    {
+        Self::from::<V>(&complex.structure, device)
+    }
 }

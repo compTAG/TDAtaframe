@@ -1,6 +1,6 @@
 use crate::{
     complex::{Complex, Weighted},
-    complex_opt::WeightedOptComplex,
+    complex_opt::{OptComplex, WeightedOptComplex},
     complex_tensor::{TensorComplex, WeightedTensorComplex},
     utils::array2_to_tensor,
 };
@@ -8,16 +8,16 @@ use ndarray::Array2;
 use tch::{kind::Element, Device, Kind, Tensor};
 
 #[derive(Debug)]
-pub struct WECTParams {
+pub struct ECTParams {
     pub dirs: Tensor,
     pub num_heights: i64,
 }
 
-impl WECTParams {
+impl ECTParams {
     pub fn from_dirs(dirs: Tensor, num_heights: i64) -> Self {
         // let device = dirs.device();
         // // let height_tensor = Tensor::scalar_tensor(num_heights, (kind::Kind::Int64, device));
-        WECTParams {
+        ECTParams {
             dirs: dirs.set_requires_grad(false),
             num_heights, //height_tensor.set_requires_grad(false),
         }
@@ -28,23 +28,55 @@ impl WECTParams {
         Self::from_dirs(dirs, num_heghts)
     }
 }
+
+pub trait TensorEct {
+    type RotMat;
+    // Computes the ECT for the complex, applying a rotation matrix to the vertices beforehand.
+    fn pre_rot_ect(&self, params: &ECTParams, tx: Self::RotMat) -> Tensor;
+
+    // Computes the ECT for the complex.
+    fn ect(&self, params: &ECTParams) -> Tensor;
+}
+
 pub trait TensorWect {
     type RotMat;
     // Computes the WECT for the complex, applying a rotation matrix to the vertices beforehand.
-    fn pre_rot_wect(&self, params: &WECTParams, tx: Self::RotMat) -> Tensor;
+    fn pre_rot_wect(&self, params: &ECTParams, tx: Self::RotMat) -> Tensor;
 
     // Computes the WECT for the complex.
-    fn wect(&self, params: &WECTParams) -> Tensor;
+    fn wect(&self, params: &ECTParams) -> Tensor;
 }
 
 impl TensorWect for WeightedTensorComplex {
     type RotMat = Tensor;
-    fn wect(&self, params: &WECTParams) -> Tensor {
+    fn wect(&self, params: &ECTParams) -> Tensor {
         wect(self, None, params)
     }
 
-    fn pre_rot_wect(&self, params: &WECTParams, tx: Self::RotMat) -> Tensor {
+    fn pre_rot_wect(&self, params: &ECTParams, tx: Self::RotMat) -> Tensor {
         wect(self, Some(tx), params)
+    }
+}
+
+impl TensorEct for WeightedTensorComplex {
+    type RotMat = Tensor;
+    fn ect(&self, params: &ECTParams) -> Tensor {
+        ect(&self.structure, None, params)
+    }
+
+    fn pre_rot_ect(&self, params: &ECTParams, tx: Self::RotMat) -> Tensor {
+        ect(&self.structure, Some(tx), params)
+    }
+}
+
+impl TensorEct for TensorComplex {
+    type RotMat = Tensor;
+    fn ect(&self, params: &ECTParams) -> Tensor {
+        ect(self, None, params)
+    }
+
+    fn pre_rot_ect(&self, params: &ECTParams, tx: Self::RotMat) -> Tensor {
+        ect(self, Some(tx), params)
     }
 }
 
@@ -54,7 +86,7 @@ where
     W: Element,
 {
     type RotMat = Array2<f64>;
-    fn wect(&self, params: &WECTParams) -> Tensor {
+    fn wect(&self, params: &ECTParams) -> Tensor {
         if self.has_missing_dims() {
             panic!("Cannot compute WECT with missing dimensions");
         }
@@ -65,14 +97,61 @@ where
 
     // You probably don't want to call this over multiple TX, since each call
     // recreates a tensor complex
-    fn pre_rot_wect(&self, params: &WECTParams, tx: Self::RotMat) -> Tensor {
+    fn pre_rot_wect(&self, params: &ECTParams, tx: Self::RotMat) -> Tensor {
         let device = tch::Device::cuda_if_available();
         let tensor_complex = WeightedTensorComplex::from(self, device);
         tensor_complex.pre_rot_wect(params, array2_to_tensor(&tx, device))
     }
 }
 
-fn vertex_indices(params: &WECTParams, vertex_coords: &Tensor) -> Tensor {
+impl<P, W> TensorEct for WeightedOptComplex<P, W>
+where
+    P: Element,
+    W: Element,
+{
+    type RotMat = Array2<f64>;
+    fn ect(&self, params: &ECTParams) -> Tensor {
+        if self.has_missing_dims() {
+            panic!("Cannot compute ECT with missing dimensions");
+        }
+        let device = tch::Device::cuda_if_available();
+        let tensor_complex = TensorComplex::from_weighted(self, device);
+        tensor_complex.ect(params)
+    }
+
+    // You probably don't want to call this over multiple TX, since each call
+    // recreates a tensor complex
+    fn pre_rot_ect(&self, params: &ECTParams, tx: Self::RotMat) -> Tensor {
+        let device = tch::Device::cuda_if_available();
+        let tensor_complex = TensorComplex::from_weighted(self, device);
+        tensor_complex.pre_rot_ect(params, array2_to_tensor(&tx, device))
+    }
+}
+
+impl<P> TensorEct for OptComplex<P>
+where
+    P: Element,
+{
+    type RotMat = Array2<f64>;
+    fn ect(&self, params: &ECTParams) -> Tensor {
+        if self.has_missing_dims() {
+            panic!("Cannot compute ECT with missing dimensions");
+        }
+        let device = tch::Device::cuda_if_available();
+        let tensor_complex = TensorComplex::from(self, device);
+        tensor_complex.ect(params)
+    }
+
+    // You probably don't want to call this over multiple TX, since each call
+    // recreates a tensor complex
+    fn pre_rot_ect(&self, params: &ECTParams, tx: Self::RotMat) -> Tensor {
+        let device = tch::Device::cuda_if_available();
+        let tensor_complex = TensorComplex::from(self, device);
+        tensor_complex.pre_rot_ect(params, array2_to_tensor(&tx, device))
+    }
+}
+
+fn vertex_indices(params: &ECTParams, vertex_coords: &Tensor) -> Tensor {
     let v_norms = vertex_coords.norm_scalaropt_dim(2, [1], false); // vertex l2 norms
     let max_height = v_norms.max();
 
@@ -84,7 +163,7 @@ fn vertex_indices(params: &WECTParams, vertex_coords: &Tensor) -> Tensor {
     v_indices
 }
 
-fn sparsify_index_tensor(params: &WECTParams, index_tensor: &Tensor, weight_dtype: Kind) -> Tensor {
+fn sparsify_index_tensor(params: &ECTParams, index_tensor: &Tensor, weight_dtype: Kind) -> Tensor {
     let n = index_tensor.size()[0];
     let device = index_tensor.device();
     let grid = tch::Tensor::meshgrid(&[
@@ -107,7 +186,7 @@ fn sparsify_index_tensor(params: &WECTParams, index_tensor: &Tensor, weight_dtyp
     Tensor::sparse_coo_tensor_indices_size(&indices, &values, &shape, (Kind::Float, device), false)
 }
 
-fn ect(complex: &TensorComplex, tx: Option<Tensor>, params: &WECTParams) -> Tensor {
+fn ect(complex: &TensorComplex, tx: Option<Tensor>, params: &ECTParams) -> Tensor {
     let vertex_coords = match tx {
         Some(tx) => complex.get_vertices().matmul(&tx.transpose(0, 1)),
         None => complex.get_vertices().shallow_clone(),
@@ -146,7 +225,7 @@ fn ect(complex: &TensorComplex, tx: Option<Tensor>, params: &WECTParams) -> Tens
     let ect = contributions.to_dense(None, false).cumsum(1, Kind::Float);
     ect
 }
-fn wect(complex: &WeightedTensorComplex, tx: Option<Tensor>, params: &WECTParams) -> Tensor {
+fn wect(complex: &WeightedTensorComplex, tx: Option<Tensor>, params: &ECTParams) -> Tensor {
     let vertex_coords = match tx {
         Some(tx) => complex.get_vertices().matmul(&tx.transpose(0, 1)),
         None => complex.get_vertices().shallow_clone(),
