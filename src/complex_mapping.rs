@@ -11,7 +11,6 @@ use rand::thread_rng;
 
 use crate::complex::{Complex, Weighted};
 use crate::complex_opt::WeightedOptComplex;
-
 pub trait PreMappable {
     type Output;
     type Point;

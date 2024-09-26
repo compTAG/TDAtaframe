@@ -2,10 +2,9 @@ import os
 import pprint
 
 import numpy as np
-from tdataframe.wect.queries import with_premapped_copy_wects, with_wects
+from tdataframe.ect import with_premapped_copy_wects, with_wects, with_premapped_wects
 import polars as pl
-from tdataframe.wect import with_premapped_wects
-from tdataframe.params import MapArgs, MapCopyArgs, WectArgs, WeightedComplexInfo
+from tdataframe.params import MapArgs, MapCopyArgs, EctArgs, WeightedComplexInfo
 from tdataframe.alignment import with_barycenters
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -261,14 +260,14 @@ def degen_wect(degen_vertices, degen_triangles, degen_normals) -> None:
         provided_weights=provided_weights,
     )
 
-    wa = WectArgs(directions=25, steps=20)
+    ea = EctArgs(directions=25, steps=20)
 
     print(df)
 
     wdf = with_wects(
         df.lazy(),
         wci,
-        wa=wa,
+        ea=ea,
         wname="wects",
     ).select("ID", "simplices", "weights", "wects")
     print(wdf.explain(streaming=True))

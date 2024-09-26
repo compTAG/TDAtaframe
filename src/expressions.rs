@@ -123,6 +123,15 @@ fn struct_use_weights(input_fields: &[Field]) -> PolarsResult<Field> {
     }
 }
 
+fn struct_use_verts(input_fields: &[Field]) -> PolarsResult<Field> {
+    let field = &input_fields[0];
+    match field.dtype() {
+        DataType::Struct(fields) => {
+            Ok(fields[0].clone()) // use type of vertices
+        }
+        _ => unreachable!(),
+    }
+}
 #[derive(Clone, Deserialize)]
 struct PremappedCopyWectArgs {
     embedded_dimension: i64,
@@ -287,7 +296,7 @@ struct EctArgs {
 }
 
 // compute the wect for a given complex
-#[polars_expr(output_type_func=struct_use_weights)]
+#[polars_expr(output_type_func=struct_use_verts)]
 pub fn ect(inputs: &[Series], kwargs: EctArgs) -> PolarsResult<Series> {
     tch::maybe_init_cuda();
     let device = tch::Device::cuda_if_available();
@@ -315,3 +324,108 @@ pub fn ect(inputs: &[Series], kwargs: EctArgs) -> PolarsResult<Series> {
 
     iter_complex(&inputs[0], vdim, psimps, closure)
 }
+
+// #[derive(Clone, Deserialize)]
+// struct PremappedEctArgs {
+//     embedded_dimension: i64,
+//     num_heights: i64,
+//     num_directions: i64,
+//     provided_simplices: Vec<usize>, // the dimensions of simplices provied, in order, starting with 1
+//     align_dimension: usize,
+//     subsample_ratio: f32,
+//     subsample_min: usize,
+//     subsample_max: usize,
+// }
+//
+// #[polars_expr(output_type_func=struct_use_verts)]
+// pub fn premapped_ect(inputs: &[Series], kwargs: PremappedEctArgs) -> PolarsResult<Series> {
+//     tch::maybe_init_cuda();
+//     let device = tch::Device::cuda_if_available();
+//     let ep = ECTParams::new(
+//         kwargs.embedded_dimension,
+//         kwargs.num_directions,
+//         kwargs.num_heights,
+//         device,
+//     );
+//
+//     let psimps = &kwargs.provided_simplices;
+//
+//     let vdim = kwargs.embedded_dimension as usize;
+//
+//     let closure = |complex: &mut OptComplex<f32>| {
+//         complex.interpolate_missing_down();
+//         let pre_rot = complex.premap(
+//             kwargs.align_dimension,
+//             kwargs.subsample_ratio,
+//             kwargs.subsample_min,
+//             kwargs.subsample_max,
+//         );
+//
+//         let device = ep.dirs.device();
+//         let tensor_complex = TensorComplex::from(&complex, device);
+//
+//         let tx = array2_to_tensor(&pre_rot, device);
+//         let ect = tensor_complex.pre_rot_ect(&ep, tx);
+//         tensor_to_flat(&ect)
+//     };
+//
+//     iter_complex(&inputs[0], vdim, psimps, closure)
+// }
+//
+// #[derive(Clone, Deserialize)]
+// struct PremappedCopyEctArgs {
+//     embedded_dimension: i64,
+//     num_heights: i64,
+//     num_directions: i64,
+//     provided_simplices: Vec<usize>, // the dimensions of simplices provied, in order, starting with 1
+//     align_dimension: usize,
+//     subsample_ratio: f32,
+//     subsample_min: usize,
+//     subsample_max: usize,
+//     eps: Option<f32>,
+//     copies: bool,
+// }
+//
+// #[polars_expr(output_type_func=struct_use_verts)]
+// pub fn premapped_copy_ect(inputs: &[Series], kwargs: PremappedCopyEctArgs) -> PolarsResult<Series> {
+//     tch::maybe_init_cuda();
+//     let device = tch::Device::cuda_if_available();
+//     let ep = ECTParams::new(
+//         kwargs.embedded_dimension,
+//         kwargs.num_directions,
+//         kwargs.num_heights,
+//         device,
+//     );
+//
+//     let psimps = &kwargs.provided_simplices;
+//
+//     let vdim = kwargs.embedded_dimension as usize;
+//
+//     let closure = |complex: &mut OptComplex<f32>| {
+//         complex.interpolate_missing_down();
+//         let pre_rots = complex.premap_copy(
+//             kwargs.align_dimension,
+//             kwargs.subsample_ratio,
+//             kwargs.subsample_min,
+//             kwargs.subsample_max,
+//             kwargs.eps,
+//             kwargs.copies,
+//         );
+//
+//         let device = ep.dirs.device();
+//         let tensor_complex = TensorComplex::from(&complex, device);
+//         pre_rots // apply the wect for each rotation, and flatten the output
+//             .iter()
+//             .map(|x| {
+//                 let tx = array2_to_tensor(x, device);
+//                 let ect = tensor_complex.pre_rot_ect(&ep, tx);
+//                 tensor_to_flat(&ect)
+//             })
+//             .collect::<Vec<Vec<_>>>()
+//             .into_iter()
+//             .flatten()
+//             .collect::<Vec<_>>()
+//     };
+//
+//     iter_complex(&inputs[0], vdim, psimps, closure)
+// }

@@ -2,10 +2,22 @@ import os
 import pprint
 
 import numpy as np
-from tdataframe.wect.queries import with_premapped_copy_wects, with_wects
+from tdataframe.ect import (
+    with_premapped_copy_wects,
+    with_wects,
+    with_premapped_wects,
+    with_ects,
+    # with_premapped_copy_ects,
+    # with_premapped_ects,
+)
 import polars as pl
-from tdataframe.wect import with_premapped_wects
-from tdataframe.params import MapArgs, MapCopyArgs, WectArgs, WeightedComplexInfo
+from tdataframe.params import (
+    MapArgs,
+    MapCopyArgs,
+    EctArgs,
+    WeightedComplexInfo,
+    ComplexInfo,
+)
 from tdataframe.alignment import with_barycenters
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -156,14 +168,14 @@ def test_wect() -> None:
         provided_weights=provided_weights,
     )
 
-    wa = WectArgs(directions=25, steps=20)
+    ea = EctArgs(directions=25, steps=20)
 
     print(df)
 
     wdf = with_wects(
         df.lazy(),
         wci,
-        wa=wa,
+        ea=ea,
         wname="wects",
     ).select("ID", "simplices", "weights", "wects")
     print(wdf.explain(streaming=True))
@@ -204,7 +216,7 @@ def test_premapped_wect() -> None:
         provided_weights=provided_weights,
     )
 
-    wa = WectArgs(directions=25, steps=20)
+    ea = EctArgs(directions=25, steps=20)
     ma = MapArgs(
         subsample_ratio=1.0,
         subsample_min=10,
@@ -218,7 +230,7 @@ def test_premapped_wect() -> None:
         df.lazy(),
         wci,
         ma=ma,
-        wa=wa,
+        ea=ea,
         wname="wects",
     ).select("ID", "simplices", "weights", "wects")
     print(wdf.explain(streaming=True))
@@ -255,7 +267,7 @@ def test_premapped_copy_wect() -> None:
         provided_weights=provided_weights,
     )
 
-    wa = WectArgs(directions=25, steps=20)
+    ea = EctArgs(directions=25, steps=20)
     ma = MapCopyArgs(
         subsample_ratio=1.0,
         subsample_min=10,
@@ -271,7 +283,7 @@ def test_premapped_copy_wect() -> None:
         df.lazy(),
         wci,
         ma=ma,
-        wa=wa,
+        ea=ea,
         wname="wects",
     ).select("ID", "simplices", "weights", "wects")
     print(wdf.explain(streaming=True))
@@ -281,3 +293,136 @@ def test_premapped_copy_wect() -> None:
     for wect in wects:
         wect = wect.reshape(-1, 25, 20)
         print(wect)
+
+
+def test_ect() -> None:
+    vertices, triangles, normals = build_octahedron(False, 2.0, 1.0, 3.0)
+    vertices2, _, triangles2, normals2 = build_tetrahedron()
+    df = pl.DataFrame(
+        {
+            "ID": ["octahedron", "tetrahedron"],
+            "simplices": {
+                "vertices": [vertices.flatten(), vertices2.flatten()],
+                "triangles": [triangles.flatten(), triangles2.flatten()],
+            },
+        },
+    )
+
+    provided_simplices = [2]
+
+    ci = ComplexInfo(
+        simplices="simplices",
+        vdim=3,
+        provided_simplices=provided_simplices,
+    )
+
+    ea = EctArgs(directions=25, steps=20)
+
+    print(df)
+
+    edf = with_ects(
+        df.lazy(),
+        ci,
+        ea=ea,
+        ename="ects",
+    ).select("ID", "simplices", "ects")
+    print(edf.explain(streaming=True))
+    edf = edf.collect()
+
+    ects = edf.to_dict()["ects"].to_numpy()
+    for ect in ects:
+        print(ect.reshape(25, 20))
+
+
+# def test_premapped_ect() -> None:
+#     vertices, triangles, normals = build_octahedron(False, 2.0, 1.0, 3.0)
+#     vertices2, _, triangles2, normals2 = build_tetrahedron()
+#     df = pl.DataFrame(
+#         {
+#             "ID": ["octahedron", "tetrahedron"],
+#             "simplices": {
+#                 "vertices": [vertices.flatten(), vertices2.flatten()],
+#                 "triangles": [triangles.flatten(), triangles2.flatten()],
+#             },
+#         },
+#     )
+#
+#     provided_simplices = [2]
+#
+#     ci = ComplexInfo(
+#         simplices="simplices",
+#         vdim=3,
+#         provided_simplices=provided_simplices,
+#     )
+#
+#     ea = EctArgs(directions=25, steps=20)
+#     ma = MapArgs(
+#         subsample_ratio=1.0,
+#         subsample_min=10,
+#         subsample_max=100,
+#         align_dimension=2,
+#     )
+#
+#     print(df)
+#
+#     edf = with_premapped_ects(
+#         df.lazy(),
+#         ci,
+#         ma=ma,
+#         ea=ea,
+#         ename="ects",
+#     ).select("ID", "simplices", "ects")
+#     print(edf.explain(streaming=True))
+#     edf = edf.collect()
+#
+#     ects = edf.to_dict()["ects"].to_numpy()
+#     for ect in ects:
+#         print(ect.reshape(25, 20))
+#
+#
+# def test_premapped_copy_ect() -> None:
+#     vertices, triangles, normals = build_octahedron(False, 2.0, 1.0, 3.0)
+#     vertices2, _, triangles2, normals2 = build_tetrahedron()
+#     df = pl.DataFrame(
+#         {
+#             "ID": ["octahedron", "tetrahedron"],
+#             "simplices": {
+#                 "vertices": [vertices.flatten(), vertices2.flatten()],
+#                 "triangles": [triangles.flatten(), triangles2.flatten()],
+#             },
+#         },
+#     )
+#
+#     provided_simplices = [2]
+#
+#     ci = ComplexInfo(
+#         simplices="simplices",
+#         vdim=3,
+#         provided_simplices=provided_simplices,
+#     )
+#
+#     ea = EctArgs(directions=25, steps=20)
+#     ma = MapCopyArgs(
+#         subsample_ratio=1.0,
+#         subsample_min=10,
+#         subsample_max=100,
+#         eps=0.01,
+#         copies=False,
+#         align_dimension=2,
+#     )
+#
+#     print(df)
+#
+#     edf = with_premapped_copy_ects(
+#         df.lazy(),
+#         ci,
+#         ma=ma,
+#         ea=ea,
+#         ename="ects",
+#     ).select("ID", "simplices", "ects")
+#     print(edf.explain(streaming=True))
+#     edf = edf.collect()
+#
+#     ects = edf.to_dict()["ects"].to_numpy()
+#     for ect in ects:
+#         print(ect.reshape(25, 20))
