@@ -4,8 +4,10 @@ use crate::complex_opt::{OptComplex, WeightedOptComplex};
 use ndarray::{Array2, ArrayView2};
 // use polars_core::utils::rayon::iter::{IndexedParallelIterator, IntoParallelIterator, MultiZip};
 // use polars_core::utils::rayon::prelude::*;
+use polars::datatypes::ListChunked;
+use polars::prelude::*;
 use polars_arrow::array::{Array, PrimitiveArray};
-use pyo3_polars::export::polars_core::prelude::*;
+// use pyo3_polars::export::polars_core::prelude::*;
 
 pub fn iter_vert_simp_weight(
     vertices_s: &Series,
@@ -210,18 +212,92 @@ pub fn iter_weighted_complex(
     Ok(out.into_series())
 }
 
+// pub fn iter_complex(
+//     simplices_s: &Series,
+//     vdim: usize,
+//     psimps: &Vec<usize>, //provided simplices, sorted, 1 to k
+//     mut complex_fn: impl FnMut(&mut OptComplex<f32>) -> Vec<f32>,
+// ) -> PolarsResult<Series> {
+//     if psimps.len() == 0 && psimps[0] == 0 {
+//         panic!("Provided simplices must be greater than 0");
+//     }
+//
+//     let k = psimps.get(psimps.len() - 1).unwrap();
+//
+//     let simplex_fields: Vec<Series> = simplices_s.struct_()?.fields_as_series();
+//     let simplex_series: Vec<&ChunkedArray<ListType>> =
+//         simplex_fields.iter().map(|x| x.list().unwrap()).collect();
+//
+//     let out: ChunkedArray<ListType> = simplex_series[0]
+//         .amortized_iter() // HACK: maybe want to get rid of amortized
+//         .enumerate()
+//         .map(|(j, v)| -> Option<Box<dyn Array>> {
+//             // j is the index of the row
+//             let vertices: Vec<f32> = v
+//                 .as_ref()
+//                 .unwrap()
+//                 .as_ref()
+//                 .f32()
+//                 .unwrap()
+//                 .to_vec_null_aware()
+//                 .left()
+//                 .unwrap();
+//             // i is the index into the Series vector
+//             let mut simplices: VecDeque<Vec<usize>> = (1..simplex_series.len())
+//                 .map(|i| -> Vec<usize> {
+//                     simplex_series[i]
+//                         .get_as_series(j)
+//                         .unwrap()
+//                         .u32()
+//                         .unwrap()
+//                         .to_vec_null_aware()
+//                         .left()
+//                         .unwrap()
+//                         .into_iter()
+//                         .map(|x| x as usize)
+//                         .collect::<Vec<usize>>()
+//                 })
+//                 .collect();
+//
+//             let vertices: Array2<f32> =
+//                 ArrayView2::from_shape((vertices.len() / vdim, vdim), &vertices)
+//                     .unwrap()
+//                     .into_owned(); // TODO: remove into_owned. this needs modification in
+//                                    // complex.rs
+//             let mut opt_simplices: Vec<Option<Array2<usize>>> = Vec::with_capacity(*k);
+//
+//             let mut i = 1; // i tracks the current dimension
+//             psimps.iter().for_each(|&dim| {
+//                 while i < dim {
+//                     // fill missing dimensions
+//                     opt_simplices.push(None);
+//                     i += 1;
+//                 }
+//
+//                 let s_row = simplices.pop_front().unwrap();
+//                 let simplex_array =
+//                     ArrayView2::from_shape((s_row.len() / (dim + 1), (dim + 1)), &s_row).unwrap(); // TODO: no copy
+//                 opt_simplices.push(Some(simplex_array.into_owned()));
+//                 i += 1;
+//             });
+//
+//             let mut complex = OptComplex::from_simplices(vertices, opt_simplices);
+//
+//             let out = complex_fn(&mut complex);
+//
+//             // TODO: make generic
+//             let prim = Box::new(PrimitiveArray::<f32>::from_vec(out));
+//             Some(prim)
+//         })
+//         .collect_ca_with_dtype("".into(), DataType::List(Box::new(DataType::Float32)));
+//     Ok(out.into_series())
+// }
+
 pub fn iter_complex(
     simplices_s: &Series,
-    vdim: usize,
-    psimps: &Vec<usize>, //provided simplices, sorted, 1 to k
     mut complex_fn: impl FnMut(&mut OptComplex<f32>) -> Vec<f32>,
 ) -> PolarsResult<Series> {
-    if psimps.len() == 0 && psimps[0] == 0 {
-        panic!("Provided simplices must be greater than 0");
-    }
-
-    let k = psimps.get(psimps.len() - 1).unwrap();
-
+    // get each field in struct as a list
     let simplex_fields: Vec<Series> = simplices_s.struct_()?.fields_as_series();
     let simplex_series: Vec<&ChunkedArray<ListType>> =
         simplex_fields.iter().map(|x| x.list().unwrap()).collect();
@@ -231,37 +307,31 @@ pub fn iter_complex(
         .enumerate()
         .map(|(j, v)| -> Option<Box<dyn Array>> {
             // j is the index of the row
-            let vertices: Vec<f32> = v
-                .as_ref()
-                .unwrap()
-                .as_ref()
-                .f32()
-                .unwrap()
-                .to_vec_null_aware()
-                .left()
-                .unwrap();
+            let vertices_array: &ListChunked = v.as_ref().unwrap().as_ref().list().unwrap();
+            let vertices = vertices_array.to_ndarray::<Float32Type>().unwrap();
+
             // i is the index into the Series vector
-            let mut simplices: VecDeque<Vec<usize>> = (1..simplex_series.len())
-                .map(|i| -> Vec<usize> {
+            let mut simplices: VecDeque<Array2<usize>> = (1..simplex_series.len())
+                .map(|i| -> Array2<usize> {
                     simplex_series[i]
                         .get_as_series(j)
                         .unwrap()
-                        .u32()
+                        .list()
                         .unwrap()
-                        .to_vec_null_aware()
-                        .left()
+                        .to_ndarray::<UInt32Type>()
                         .unwrap()
-                        .into_iter()
-                        .map(|x| x as usize)
-                        .collect::<Vec<usize>>()
+                        .mapv(|x| x as usize)
                 })
                 .collect();
 
-            let vertices: Array2<f32> =
-                ArrayView2::from_shape((vertices.len() / vdim, vdim), &vertices)
-                    .unwrap()
-                    .into_owned(); // TODO: remove into_owned. this needs modification in
-                                   // complex.rs
+            // instead, build psimps by looking at the sizes of the arrays in simplices
+            let psimps: Vec<usize> = simplices.iter().map(|x| x.shape()[1] - 1).collect();
+
+            if psimps.len() == 0 && psimps[0] == 0 {
+                panic!("Provided simplices must be greater than 0");
+            }
+            let k = psimps.get(psimps.len() - 1).unwrap(); // the top dimension
+
             let mut opt_simplices: Vec<Option<Array2<usize>>> = Vec::with_capacity(*k);
 
             let mut i = 1; // i tracks the current dimension
@@ -272,9 +342,7 @@ pub fn iter_complex(
                     i += 1;
                 }
 
-                let s_row = simplices.pop_front().unwrap();
-                let simplex_array =
-                    ArrayView2::from_shape((s_row.len() / (dim + 1), (dim + 1)), &s_row).unwrap(); // TODO: no copy
+                let simplex_array = simplices.pop_front().unwrap();
                 opt_simplices.push(Some(simplex_array.into_owned()));
                 i += 1;
             });
