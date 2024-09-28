@@ -297,17 +297,13 @@ def test_ect() -> None:
         },
     )
 
-    ci = ComplexInfo(
-        simplices="simplices",
-    )
-
     ea = EctArgs(directions=25, steps=20)
 
     print(df)
 
     edf = with_ects(
         df.lazy(),
-        ci,
+        "simplices",
         ea=ea,
         ename="ects",
     ).select("ID", "simplices", "ects")

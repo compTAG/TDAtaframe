@@ -5,12 +5,6 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 
-class ComplexInfo(BaseModel):
-    """Info about a simplicial complex as stored in a polars dataframe."""
-
-    simplices: str  # The name of the column pointing to a simplicial complex
-
-
 class WeightedComplexInfo(BaseModel):
     """Info about a weighted simplicial complex stored in a polars dataframe."""
 

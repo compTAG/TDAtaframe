@@ -219,7 +219,7 @@ def with_wects(
 
 
 def ects(
-    ci: ComplexInfo,
+    simplex_column: str,
     ea: EctArgs,
 ) -> pl.Expr:
     """Compute the ECTs for the given simplices. The simplices and weights columns are each flattened structs.
@@ -229,7 +229,7 @@ def ects(
         ea: Arguments for the ECTs.
     """
     ects = ect(
-        pl.col(ci.simplices),
+        pl.col(simplex_column),
         num_heights=ea.steps,
         num_directions=ea.directions,
     )  # output column of (n * d * d) flattened array of flattened matrices
@@ -244,7 +244,7 @@ def ects(
 
 def with_ects(
     df: pl.LazyFrame | pl.DataFrame,
-    ci: ComplexInfo,
+    simplex_column: str,
     ea: EctArgs,
     ename: str,
 ) -> pl.LazyFrame:
@@ -255,4 +255,4 @@ def with_ects(
         given by a transformation on an object.
 
     """
-    return df.lazy().with_columns(ects(ci, ea).alias(ename))
+    return df.lazy().with_columns(ects(simplex_column, ea).alias(ename))
