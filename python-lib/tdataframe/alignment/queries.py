@@ -23,8 +23,6 @@ def with_barycenters(
     df: pl.LazyFrame,
     v: str,
     t: str,
-    vdim: int,
-    sdim: int,
     b: str,
     flat_in: bool = True,
 ) -> pl.LazyFrame:
@@ -47,16 +45,12 @@ def with_barycenters(
             _barycenters(
                 flatten_matrix(pl.col(v)),
                 flatten_matrix(pl.col(t)),
-                embedded_dimension=vdim,
-                simplex_dimension=sdim,
             ).alias(b),
         )
     return df.lazy().with_columns(
         _barycenters(
             pl.col(v),
             pl.col(t),
-            embedded_dimension=vdim,
-            simplex_dimension=sdim,
         ).alias(b),
     )
 

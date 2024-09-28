@@ -129,8 +129,6 @@ def test_bary() -> None:
             df.lazy(),
             v="vertices",
             t="triangles",
-            vdim=3,
-            sdim=2,
             b="barycenters",
         )
         .select("ID", "vertices", "triangles", "barycenters")
@@ -157,14 +155,11 @@ def test_wect() -> None:
         },
     )
 
-    provided_simplices = [2]
     provided_weights = [2]
 
     wci = WeightedComplexInfo(
         simplices="simplices",
         weights="weights",
-        vdim=3,
-        provided_simplices=provided_simplices,
         provided_weights=provided_weights,
     )
 
@@ -205,14 +200,11 @@ def test_premapped_wect() -> None:
         },
     )
 
-    provided_simplices = [2]
     provided_weights = [2]
 
     wci = WeightedComplexInfo(
         simplices="simplices",
         weights="weights",
-        vdim=3,
-        provided_simplices=provided_simplices,
         provided_weights=provided_weights,
     )
 
@@ -256,14 +248,11 @@ def test_premapped_copy_wect() -> None:
         },
     )
 
-    provided_simplices = [2]
     provided_weights = [2]
 
     wci = WeightedComplexInfo(
         simplices="simplices",
         weights="weights",
-        vdim=3,
-        provided_simplices=provided_simplices,
         provided_weights=provided_weights,
     )
 
@@ -308,12 +297,8 @@ def test_ect() -> None:
         },
     )
 
-    provided_simplices = [2]
-
     ci = ComplexInfo(
         simplices="simplices",
-        vdim=3,
-        provided_simplices=provided_simplices,
     )
 
     ea = EctArgs(directions=25, steps=20)
@@ -347,12 +332,10 @@ def test_ect() -> None:
 #         },
 #     )
 #
-#     provided_simplices = [2]
 #
 #     ci = ComplexInfo(
 #         simplices="simplices",
 #         vdim=3,
-#         provided_simplices=provided_simplices,
 #     )
 #
 #     ea = EctArgs(directions=25, steps=20)
@@ -386,12 +369,10 @@ def test_ect() -> None:
 #         },
 #     )
 #
-#     provided_simplices = [2]
 #
 #     ci = ComplexInfo(
 #         simplices="simplices",
 #         vdim=3,
-#         provided_simplices=provided_simplices,
 #     )
 #
 #     ea = EctArgs(directions=25, steps=20)
@@ -432,12 +413,10 @@ def test_ect() -> None:
 #         },
 #     )
 #
-#     provided_simplices = [2]
 #
 #     ci = ComplexInfo(
 #         simplices="simplices",
 #         vdim=3,
-#         provided_simplices=provided_simplices,
 #     )
 #
 #     ea = EctArgs(directions=25, steps=20)

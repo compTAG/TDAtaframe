@@ -233,10 +233,10 @@ def degen_wect(degen_vertices, degen_triangles, degen_normals) -> None:
         "ID": ["degen"],
         "simplices": {
             "vertices": [
-                degen_vertices.flatten(),
+                degen_vertices.tolist(),
             ],
             "triangles": [
-                degen_triangles.flatten(),
+                degen_triangles.tolist(),
             ],
         },
         "weights": {
