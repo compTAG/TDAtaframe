@@ -1,5 +1,6 @@
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 
+use crate::complex::{Complex, SimplexList, Weighted};
 use crate::complex_mapping::{compute_barycenters, compute_maps_svd_copies};
 use crate::complex_mapping::{compute_map_svd, PreMappable};
 use crate::complex_opt::{Interpolate, OptComplex, WeightedOptComplex};
@@ -12,30 +13,20 @@ use serde::Deserialize;
 
 use pyo3_polars::derive::polars_expr;
 
-use pyo3_polars::export::polars_core::prelude::*;
+use polars::prelude::*;
+// use pyo3_polars::export::polars_core::prelude::*;
 
 fn same_output_type(input_fields: &[Field]) -> PolarsResult<Field> {
     let field = &input_fields[0];
     Ok(field.clone())
 }
 
-#[derive(Clone, Copy, Deserialize)]
-struct BarycentersArgs {
-    embedded_dimension: usize,
-    simplex_dimension: usize,
-}
-
 #[polars_expr(output_type_func=same_output_type)]
-pub fn barycenters(inputs: &[Series], kwargs: BarycentersArgs) -> PolarsResult<Series> {
-    iter_vert_simp(
-        &inputs[0],
-        &inputs[1],
-        kwargs.embedded_dimension,
-        kwargs.simplex_dimension,
-        |va, sa| compute_barycenters(va, sa).into_raw_vec(),
-    )
+pub fn barycenters(inputs: &[Series]) -> PolarsResult<Series> {
+    iter_vert_simp(&inputs[0], &inputs[1], |va, sa| {
+        compute_barycenters(va, sa).into_raw_vec()
+    })
 }
-
 #[derive(Clone, Copy, Deserialize)]
 struct MapsSvdArgs {
     embedded_dimension: usize,
@@ -47,27 +38,20 @@ struct MapsSvdArgs {
 /// Compute the SVD maps for a given complex (given by verts, simps weights)
 #[polars_expr(output_type_func=same_output_type)] // TODO: when unflattened, need to change output
 pub fn map_svd(inputs: &[Series], kwargs: MapsSvdArgs) -> PolarsResult<Series> {
-    iter_vert_simp_weight(
-        &inputs[0],
-        &inputs[1],
-        &inputs[2],
-        kwargs.embedded_dimension,
-        kwargs.simplex_dimension,
-        |va, sa, w| {
-            let map: Array2<f32> = compute_map_svd(
-                // TODO: unhardcode f32
-                &va.view(),
-                &sa.view(),
-                w,
-                kwargs.subsample_ratio,
-                kwargs.subsample_min,
-                kwargs.subsample_max,
-            );
+    iter_vert_simp_weight(&inputs[0], &inputs[1], &inputs[2], |va, sa, w| {
+        let map: Array2<f32> = compute_map_svd(
+            // TODO: unhardcode f32
+            &va.view(),
+            &sa.view(),
+            w,
+            kwargs.subsample_ratio,
+            kwargs.subsample_min,
+            kwargs.subsample_max,
+        );
 
-            // flatten
-            map.into_raw_vec()
-        },
-    )
+        // flatten
+        map.into_raw_vec()
+    })
 }
 
 #[derive(Clone, Copy, Deserialize)]
@@ -85,32 +69,25 @@ struct MapsSvdCopyArgs {
 /// of the Vt matrix.
 #[polars_expr(output_type_func=same_output_type)] // TODO: when unflattened, need to change output
 pub fn maps_svd_copies(inputs: &[Series], kwargs: MapsSvdCopyArgs) -> PolarsResult<Series> {
-    iter_vert_simp_weight(
-        &inputs[0],
-        &inputs[1],
-        &inputs[2],
-        kwargs.embedded_dimension,
-        kwargs.simplex_dimension,
-        |va, sa, w| {
-            let maps: Vec<Array2<f32>> = compute_maps_svd_copies(
-                // TODO: unhardcode f32
-                &va.view(),
-                &sa.view(),
-                w,
-                kwargs.subsample_ratio,
-                kwargs.subsample_min,
-                kwargs.subsample_max,
-                kwargs.eps,
-                kwargs.copies,
-            );
+    iter_vert_simp_weight(&inputs[0], &inputs[1], &inputs[2], |va, sa, w| {
+        let maps: Vec<Array2<f32>> = compute_maps_svd_copies(
+            // TODO: unhardcode f32
+            &va.view(),
+            &sa.view(),
+            w,
+            kwargs.subsample_ratio,
+            kwargs.subsample_min,
+            kwargs.subsample_max,
+            kwargs.eps,
+            kwargs.copies,
+        );
 
-            // flatten
-            maps.into_iter()
-                .map(|x| x.into_raw_vec())
-                .flatten()
-                .collect()
-        },
-    )
+        // flatten
+        maps.into_iter()
+            .map(|x| x.into_raw_vec())
+            .flatten()
+            .collect()
+    })
 }
 
 fn struct_use_weights(input_fields: &[Field]) -> PolarsResult<Field> {
@@ -156,17 +133,8 @@ pub fn premapped_copy_wect(
 ) -> PolarsResult<Series> {
     tch::maybe_init_cuda();
     let device = tch::Device::cuda_if_available();
-    let ep = ECTParams::new(
-        kwargs.embedded_dimension,
-        kwargs.num_directions,
-        kwargs.num_heights,
-        device,
-    );
 
-    let psimps = &kwargs.provided_simplices;
-    let pweights = &kwargs.provided_weights;
-
-    let vdim = kwargs.embedded_dimension as usize;
+    let mut ep_per_dim: HashMap<i64, ECTParams> = HashMap::new();
 
     let closure = |complex: &mut WeightedOptComplex<f32, f32>| {
         complex.interpolate_missing_down();
@@ -178,6 +146,22 @@ pub fn premapped_copy_wect(
             kwargs.eps,
             kwargs.copies,
         );
+
+        let embedded_dimension = complex.get_vertices().shape()[1] as i64;
+
+        if !ep_per_dim.contains_key(&embedded_dimension) {
+            ep_per_dim.insert(
+                embedded_dimension,
+                ECTParams::new(
+                    embedded_dimension,
+                    kwargs.num_directions,
+                    kwargs.num_heights,
+                    device,
+                ),
+            );
+        }
+
+        let ep = ep_per_dim.get(&embedded_dimension).unwrap();
 
         let device = ep.dirs.device();
         let tensor_complex = WeightedTensorComplex::from(&complex, device);
@@ -194,7 +178,7 @@ pub fn premapped_copy_wect(
             .collect::<Vec<_>>()
     };
 
-    iter_weighted_complex(&inputs[0], &inputs[1], vdim, psimps, pweights, closure)
+    iter_weighted_complex(&inputs[0], &inputs[1], closure)
 }
 
 #[derive(Clone, Deserialize)]
@@ -216,17 +200,8 @@ struct PremappedWectArgs {
 pub fn premapped_wect(inputs: &[Series], kwargs: PremappedWectArgs) -> PolarsResult<Series> {
     tch::maybe_init_cuda();
     let device = tch::Device::cuda_if_available();
-    let ep = ECTParams::new(
-        kwargs.embedded_dimension,
-        kwargs.num_directions,
-        kwargs.num_heights,
-        device,
-    );
 
-    let psimps = &kwargs.provided_simplices;
-    let pweights = &kwargs.provided_weights;
-
-    let vdim = kwargs.embedded_dimension as usize;
+    let mut ep_per_dim: HashMap<i64, ECTParams> = HashMap::new();
 
     let closure = |complex: &mut WeightedOptComplex<f32, f32>| {
         complex.interpolate_missing_down();
@@ -237,6 +212,22 @@ pub fn premapped_wect(inputs: &[Series], kwargs: PremappedWectArgs) -> PolarsRes
             kwargs.subsample_max,
         );
 
+        let embedded_dimension = complex.get_vertices().shape()[1] as i64;
+
+        if !ep_per_dim.contains_key(&embedded_dimension) {
+            ep_per_dim.insert(
+                embedded_dimension,
+                ECTParams::new(
+                    embedded_dimension,
+                    kwargs.num_directions,
+                    kwargs.num_heights,
+                    device,
+                ),
+            );
+        }
+
+        let ep = ep_per_dim.get(&embedded_dimension).unwrap();
+
         let device = ep.dirs.device();
         let tensor_complex = WeightedTensorComplex::from(&complex, device);
 
@@ -244,7 +235,7 @@ pub fn premapped_wect(inputs: &[Series], kwargs: PremappedWectArgs) -> PolarsRes
         let wect = tensor_complex.pre_rot_wect(&ep, tx);
         tensor_to_flat(&wect)
     };
-    iter_weighted_complex(&inputs[0], &inputs[1], vdim, psimps, pweights, closure)
+    iter_weighted_complex(&inputs[0], &inputs[1], closure)
 }
 
 #[derive(Clone, Deserialize)]
@@ -262,20 +253,27 @@ pub fn wect(inputs: &[Series], kwargs: WectArgs) -> PolarsResult<Series> {
     tch::maybe_init_cuda();
     let device = tch::Device::cuda_if_available();
     println!("Using device: {:?}", device);
-    let ep = ECTParams::new(
-        kwargs.embedded_dimension,
-        kwargs.num_directions,
-        kwargs.num_heights,
-        device,
-    );
 
-    let psimps = &kwargs.provided_simplices;
-    let pweights = &kwargs.provided_weights;
-
-    let vdim = kwargs.embedded_dimension as usize;
+    let mut ep_per_dim: HashMap<i64, ECTParams> = HashMap::new();
 
     let closure = |complex: &mut WeightedOptComplex<f32, f32>| {
         complex.interpolate_missing_down();
+
+        let embedded_dimension = complex.get_vertices().shape()[1] as i64;
+
+        if !ep_per_dim.contains_key(&embedded_dimension) {
+            ep_per_dim.insert(
+                embedded_dimension,
+                ECTParams::new(
+                    embedded_dimension,
+                    kwargs.num_directions,
+                    kwargs.num_heights,
+                    device,
+                ),
+            );
+        }
+
+        let ep = ep_per_dim.get(&embedded_dimension).unwrap();
 
         let device = ep.dirs.device();
         let tensor_complex = WeightedTensorComplex::from(&complex, device);
@@ -284,7 +282,7 @@ pub fn wect(inputs: &[Series], kwargs: WectArgs) -> PolarsResult<Series> {
         tensor_to_flat(&wect)
     };
 
-    iter_weighted_complex(&inputs[0], &inputs[1], vdim, psimps, pweights, closure)
+    iter_weighted_complex(&inputs[0], &inputs[1], closure)
 }
 
 #[derive(Clone, Deserialize)]
@@ -295,26 +293,32 @@ struct EctArgs {
     provided_simplices: Vec<usize>, // the dimensions of simplices provied, in order, starting with 1
 }
 
-// compute the wect for a given complex
+// compute the ect for a given complex
 #[polars_expr(output_type_func=struct_use_verts)]
 pub fn ect(inputs: &[Series], kwargs: EctArgs) -> PolarsResult<Series> {
     tch::maybe_init_cuda();
     let device = tch::Device::cuda_if_available();
     println!("Using device: {:?}", device);
-    let ep = ECTParams::new(
-        kwargs.embedded_dimension,
-        kwargs.num_directions,
-        kwargs.num_heights,
-        device,
-    );
 
-    let psimps = &kwargs.provided_simplices;
-
-    let vdim = kwargs.embedded_dimension as usize;
+    let mut ep_per_dim: HashMap<i64, ECTParams> = HashMap::new();
 
     let closure = |complex: &mut OptComplex<f32>| {
         complex.interpolate_missing_down();
+        let embedded_dimension = complex.get_vertices().shape()[1] as i64;
 
+        if !ep_per_dim.contains_key(&embedded_dimension) {
+            ep_per_dim.insert(
+                embedded_dimension,
+                ECTParams::new(
+                    embedded_dimension,
+                    kwargs.num_directions,
+                    kwargs.num_heights,
+                    device,
+                ),
+            );
+        }
+
+        let ep = ep_per_dim.get(&embedded_dimension).unwrap();
         let device = ep.dirs.device();
         let tensor_complex = TensorComplex::from(&complex, device);
 
@@ -322,110 +326,6 @@ pub fn ect(inputs: &[Series], kwargs: EctArgs) -> PolarsResult<Series> {
         tensor_to_flat(&ect)
     };
 
-    iter_complex(&inputs[0], vdim, psimps, closure)
+    // iter_complex(&inputs[0], vdm, psimps, closure)
+    iter_complex(&inputs[0], closure)
 }
-
-// #[derive(Clone, Deserialize)]
-// struct PremappedEctArgs {
-//     embedded_dimension: i64,
-//     num_heights: i64,
-//     num_directions: i64,
-//     provided_simplices: Vec<usize>, // the dimensions of simplices provied, in order, starting with 1
-//     align_dimension: usize,
-//     subsample_ratio: f32,
-//     subsample_min: usize,
-//     subsample_max: usize,
-// }
-//
-// #[polars_expr(output_type_func=struct_use_verts)]
-// pub fn premapped_ect(inputs: &[Series], kwargs: PremappedEctArgs) -> PolarsResult<Series> {
-//     tch::maybe_init_cuda();
-//     let device = tch::Device::cuda_if_available();
-//     let ep = ECTParams::new(
-//         kwargs.embedded_dimension,
-//         kwargs.num_directions,
-//         kwargs.num_heights,
-//         device,
-//     );
-//
-//     let psimps = &kwargs.provided_simplices;
-//
-//     let vdim = kwargs.embedded_dimension as usize;
-//
-//     let closure = |complex: &mut OptComplex<f32>| {
-//         complex.interpolate_missing_down();
-//         let pre_rot = complex.premap(
-//             kwargs.align_dimension,
-//             kwargs.subsample_ratio,
-//             kwargs.subsample_min,
-//             kwargs.subsample_max,
-//         );
-//
-//         let device = ep.dirs.device();
-//         let tensor_complex = TensorComplex::from(&complex, device);
-//
-//         let tx = array2_to_tensor(&pre_rot, device);
-//         let ect = tensor_complex.pre_rot_ect(&ep, tx);
-//         tensor_to_flat(&ect)
-//     };
-//
-//     iter_complex(&inputs[0], vdim, psimps, closure)
-// }
-//
-// #[derive(Clone, Deserialize)]
-// struct PremappedCopyEctArgs {
-//     embedded_dimension: i64,
-//     num_heights: i64,
-//     num_directions: i64,
-//     provided_simplices: Vec<usize>, // the dimensions of simplices provied, in order, starting with 1
-//     align_dimension: usize,
-//     subsample_ratio: f32,
-//     subsample_min: usize,
-//     subsample_max: usize,
-//     eps: Option<f32>,
-//     copies: bool,
-// }
-//
-// #[polars_expr(output_type_func=struct_use_verts)]
-// pub fn premapped_copy_ect(inputs: &[Series], kwargs: PremappedCopyEctArgs) -> PolarsResult<Series> {
-//     tch::maybe_init_cuda();
-//     let device = tch::Device::cuda_if_available();
-//     let ep = ECTParams::new(
-//         kwargs.embedded_dimension,
-//         kwargs.num_directions,
-//         kwargs.num_heights,
-//         device,
-//     );
-//
-//     let psimps = &kwargs.provided_simplices;
-//
-//     let vdim = kwargs.embedded_dimension as usize;
-//
-//     let closure = |complex: &mut OptComplex<f32>| {
-//         complex.interpolate_missing_down();
-//         let pre_rots = complex.premap_copy(
-//             kwargs.align_dimension,
-//             kwargs.subsample_ratio,
-//             kwargs.subsample_min,
-//             kwargs.subsample_max,
-//             kwargs.eps,
-//             kwargs.copies,
-//         );
-//
-//         let device = ep.dirs.device();
-//         let tensor_complex = TensorComplex::from(&complex, device);
-//         pre_rots // apply the wect for each rotation, and flatten the output
-//             .iter()
-//             .map(|x| {
-//                 let tx = array2_to_tensor(x, device);
-//                 let ect = tensor_complex.pre_rot_ect(&ep, tx);
-//                 tensor_to_flat(&ect)
-//             })
-//             .collect::<Vec<Vec<_>>>()
-//             .into_iter()
-//             .flatten()
-//             .collect::<Vec<_>>()
-//     };
-//
-//     iter_complex(&inputs[0], vdim, psimps, closure)
-// }
