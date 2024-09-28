@@ -103,8 +103,8 @@ def test_bary() -> None:
     df = pl.DataFrame(
         {
             "ID": ["octahedron"],
-            "vertices": [vertices.flatten()],
-            "triangles": [triangles.flatten()],
+            "vertices": [vertices.tolist()],
+            "triangles": [triangles.tolist()],
         },
         schema={
             "ID": pl.String,
@@ -148,8 +148,8 @@ def test_wect() -> None:
         {
             "ID": ["octahedron", "tetrahedron"],
             "simplices": {
-                "vertices": [vertices.flatten(), vertices2.flatten()],
-                "triangles": [triangles.flatten(), triangles2.flatten()],
+                "vertices": [vertices.tolist(), vertices2.tolist()],
+                "triangles": [triangles.tolist(), triangles2.tolist()],
             },
             "weights": {
                 "trinormals": [normals, normals2],
@@ -196,8 +196,8 @@ def test_premapped_wect() -> None:
         {
             "ID": ["octahedron", "tetrahedron"],
             "simplices": {
-                "vertices": [vertices.flatten(), vertices2.flatten()],
-                "triangles": [triangles.flatten(), triangles2.flatten()],
+                "vertices": [vertices.tolist(), vertices2.tolist()],
+                "triangles": [triangles.tolist(), triangles2.tolist()],
             },
             "weights": {
                 "trinormals": [normals, normals2],
@@ -247,8 +247,8 @@ def test_premapped_copy_wect() -> None:
         {
             "ID": ["octahedron", "tetrahedron"],
             "simplices": {
-                "vertices": [vertices.flatten(), vertices2.flatten()],
-                "triangles": [triangles.flatten(), triangles2.flatten()],
+                "vertices": [vertices.tolist(), vertices2.tolist()],
+                "triangles": [triangles.tolist(), triangles2.tolist()],
             },
             "weights": {
                 "trinormals": [normals, normals2],
@@ -302,8 +302,8 @@ def test_ect() -> None:
         {
             "ID": ["octahedron", "tetrahedron"],
             "simplices": {
-                "vertices": [vertices.flatten(), vertices2.flatten()],
-                "triangles": [triangles.flatten(), triangles2.flatten()],
+                "vertices": [vertices.tolist(), vertices2.tolist()],
+                "triangles": [triangles.tolist(), triangles2.tolist()],
             },
         },
     )
@@ -334,6 +334,45 @@ def test_ect() -> None:
         print(ect.reshape(25, 20))
 
 
+# def test_ect() -> None:
+#     vertices, triangles, normals = build_octahedron(False, 2.0, 1.0, 3.0)
+#     vertices2, _, triangles2, normals2 = build_tetrahedron()
+#     df = pl.DataFrame(
+#         {
+#             "ID": ["octahedron", "tetrahedron"],
+#             "simplices": {
+#                 "vertices": [vertices.tolist(), vertices2.tolist()],
+#                 "triangles": [triangles.tolist(), triangles2.tolist()],
+#             },
+#         },
+#     )
+#
+#     provided_simplices = [2]
+#
+#     ci = ComplexInfo(
+#         simplices="simplices",
+#         vdim=3,
+#         provided_simplices=provided_simplices,
+#     )
+#
+#     ea = EctArgs(directions=25, steps=20)
+#
+#     print(df)
+#
+#     edf = with_ects(
+#         df.lazy(),
+#         ci,
+#         ea=ea,
+#         ename="ects",
+#     ).select("ID", "simplices", "ects")
+#     print(edf.explain(streaming=True))
+#     edf = edf.collect()
+#
+#     ects = edf.to_dict()["ects"].to_numpy()
+#     for ect in ects:
+#         print(ect.reshape(25, 20))
+#
+#
 # def test_premapped_ect() -> None:
 #     vertices, triangles, normals = build_octahedron(False, 2.0, 1.0, 3.0)
 #     vertices2, _, triangles2, normals2 = build_tetrahedron()
@@ -341,8 +380,8 @@ def test_ect() -> None:
 #         {
 #             "ID": ["octahedron", "tetrahedron"],
 #             "simplices": {
-#                 "vertices": [vertices.flatten(), vertices2.flatten()],
-#                 "triangles": [triangles.flatten(), triangles2.flatten()],
+#                 "vertices": [vertices.tolist(), vertices2.tolist()],
+#                 "triangles": [triangles.tolist(), triangles2.tolist()],
 #             },
 #         },
 #     )
@@ -387,8 +426,8 @@ def test_ect() -> None:
 #         {
 #             "ID": ["octahedron", "tetrahedron"],
 #             "simplices": {
-#                 "vertices": [vertices.flatten(), vertices2.flatten()],
-#                 "triangles": [triangles.flatten(), triangles2.flatten()],
+#                 "vertices": [vertices.tolist(), vertices2.tolist()],
+#                 "triangles": [triangles.tolist(), triangles2.tolist()],
 #             },
 #         },
 #     )

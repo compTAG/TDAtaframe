@@ -166,6 +166,7 @@ pub fn iter_complex(
 pub fn iter_weighted_complex(
     simplices_s: &Series,
     weights_s: &Series,
+    pweights: Vec<usize>,
     mut complex_fn: impl FnMut(&mut WeightedOptComplex<f32, f32>) -> Vec<f32>,
 ) -> PolarsResult<Series> {
     // get each field in struct as a list
@@ -213,7 +214,6 @@ pub fn iter_weighted_complex(
 
             // instead, build psimps by looking at the sizes of the arrays in simplices
             let psimps: Vec<usize> = simplices.iter().map(|x| x.shape()[1] - 1).collect();
-            let pweights: Vec<usize> = weights.iter().map(|x| x.len()).collect();
 
             if psimps.len() == 0 && psimps[0] == 0 {
                 panic!("Provided simplices must be greater than 0");
@@ -222,6 +222,7 @@ pub fn iter_weighted_complex(
 
             let mut opt_simplices: Vec<Option<Array2<usize>>> = Vec::with_capacity(*k);
             let mut opt_weights: Vec<Option<Vec<f32>>> = Vec::with_capacity(k + 1);
+            println!("psimps: {:?}", psimps);
 
             let mut i = 1; // i tracks the current dimension
             psimps.iter().for_each(|&dim| {
@@ -245,6 +246,9 @@ pub fn iter_weighted_complex(
                 opt_weights.push(Some(weights.pop_front().unwrap()));
                 i += 1;
             });
+
+            println!("opt_simplices: {:?}", opt_simplices);
+            println!("opt_weights: {:?}", opt_weights);
 
             let mut complex =
                 WeightedOptComplex::from_simplices(vertices, opt_simplices, opt_weights);

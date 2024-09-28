@@ -16,8 +16,6 @@ from .register import (
     pre_align_copy_wect,
     wect,
     pre_align_wect,
-    # pre_align_copy_ect,
-    # pre_align_ect,
     ect,
 )
 
@@ -48,9 +46,7 @@ def premapped_copy_wects(
     wects = pre_align_copy_wect(
         pl.col(wci.simplices),
         pl.col(wci.weights),
-        provided_simplices=wci.provided_simplices,
         provided_weights=wci.provided_weights,
-        embedded_dimension=wci.vdim,
         num_heights=ea.steps,
         num_directions=ea.directions,
         align_dimension=ma.align_dimension,
@@ -90,9 +86,7 @@ def premapped_wects(
     wects = pre_align_wect(
         pl.col(wci.simplices),
         pl.col(wci.weights),
-        provided_simplices=wci.provided_simplices,
         provided_weights=wci.provided_weights,
-        embedded_dimension=wci.vdim,
         num_heights=ea.steps,
         num_directions=ea.directions,
         align_dimension=ma.align_dimension,
@@ -178,9 +172,7 @@ def wects(
     wects = wect(
         pl.col(wci.simplices),
         pl.col(wci.weights),
-        provided_simplices=wci.provided_simplices,
         provided_weights=wci.provided_weights,
-        embedded_dimension=wci.vdim,
         num_heights=ea.steps,
         num_directions=ea.directions,
     )  # output column of (n * d * d) flattened array of flattened matrices
@@ -238,8 +230,6 @@ def ects(
     """
     ects = ect(
         pl.col(ci.simplices),
-        provided_simplices=ci.provided_simplices,
-        embedded_dimension=ci.vdim,
         num_heights=ea.steps,
         num_directions=ea.directions,
     )  # output column of (n * d * d) flattened array of flattened matrices

@@ -29,8 +29,6 @@ pub fn barycenters(inputs: &[Series]) -> PolarsResult<Series> {
 }
 #[derive(Clone, Copy, Deserialize)]
 struct MapsSvdArgs {
-    embedded_dimension: usize,
-    simplex_dimension: usize,
     subsample_ratio: f32,
     subsample_min: usize,
     subsample_max: usize,
@@ -56,8 +54,6 @@ pub fn map_svd(inputs: &[Series], kwargs: MapsSvdArgs) -> PolarsResult<Series> {
 
 #[derive(Clone, Copy, Deserialize)]
 struct MapsSvdCopyArgs {
-    embedded_dimension: usize,
-    simplex_dimension: usize,
     subsample_ratio: f32,
     subsample_min: usize,
     subsample_max: usize,
@@ -111,11 +107,9 @@ fn struct_use_verts(input_fields: &[Field]) -> PolarsResult<Field> {
 }
 #[derive(Clone, Deserialize)]
 struct PremappedCopyWectArgs {
-    embedded_dimension: i64,
     num_heights: i64,
     num_directions: i64,
-    provided_simplices: Vec<usize>, // the dimensions of simplices provied, in order, starting with 1
-    provided_weights: Vec<usize>,   // the dimensions of weights provided, in order
+    provided_weights: Vec<usize>, // the dimensions of weights provided, in order
     align_dimension: usize,
     subsample_ratio: f32,
     subsample_min: usize,
@@ -178,16 +172,14 @@ pub fn premapped_copy_wect(
             .collect::<Vec<_>>()
     };
 
-    iter_weighted_complex(&inputs[0], &inputs[1], closure)
+    iter_weighted_complex(&inputs[0], &inputs[1], kwargs.provided_weights, closure)
 }
 
 #[derive(Clone, Deserialize)]
 struct PremappedWectArgs {
-    embedded_dimension: i64,
     num_heights: i64,
     num_directions: i64,
-    provided_simplices: Vec<usize>, // the dimensions of simplices provied, in order, starting with 1
-    provided_weights: Vec<usize>,   // the dimensions of weights provided, in order
+    provided_weights: Vec<usize>, // the dimensions of weights provided, in order
     align_dimension: usize,
     subsample_ratio: f32,
     subsample_min: usize,
@@ -235,16 +227,14 @@ pub fn premapped_wect(inputs: &[Series], kwargs: PremappedWectArgs) -> PolarsRes
         let wect = tensor_complex.pre_rot_wect(&ep, tx);
         tensor_to_flat(&wect)
     };
-    iter_weighted_complex(&inputs[0], &inputs[1], closure)
+    iter_weighted_complex(&inputs[0], &inputs[1], kwargs.provided_weights, closure)
 }
 
 #[derive(Clone, Deserialize)]
 struct WectArgs {
-    embedded_dimension: i64,
     num_heights: i64,
     num_directions: i64,
-    provided_simplices: Vec<usize>, // the dimensions of simplices provied, in order, starting with 1
-    provided_weights: Vec<usize>,   // the dimensions of weights provided, in order
+    provided_weights: Vec<usize>, // the dimensions of weights provided, in order
 }
 
 // compute the wect for a given complex
@@ -282,15 +272,13 @@ pub fn wect(inputs: &[Series], kwargs: WectArgs) -> PolarsResult<Series> {
         tensor_to_flat(&wect)
     };
 
-    iter_weighted_complex(&inputs[0], &inputs[1], closure)
+    iter_weighted_complex(&inputs[0], &inputs[1], kwargs.provided_weights, closure)
 }
 
 #[derive(Clone, Deserialize)]
 struct EctArgs {
-    embedded_dimension: i64,
     num_heights: i64,
     num_directions: i64,
-    provided_simplices: Vec<usize>, // the dimensions of simplices provied, in order, starting with 1
 }
 
 // compute the ect for a given complex
