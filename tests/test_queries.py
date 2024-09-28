@@ -16,7 +16,6 @@ from tdataframe.params import (
     MapCopyArgs,
     EctArgs,
     WeightedComplexInfo,
-    ComplexInfo,
 )
 from tdataframe.alignment import with_barycenters
 

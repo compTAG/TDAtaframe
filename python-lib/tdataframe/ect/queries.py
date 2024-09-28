@@ -11,7 +11,7 @@ This whole pipeline can be called using compute_db_entry().
 import polars as pl
 
 from ..utils import unflatten_to_matrix
-from ..params import ComplexInfo, MapArgs, EctArgs, WeightedComplexInfo, MapCopyArgs
+from ..params import MapArgs, EctArgs, WeightedComplexInfo, MapCopyArgs
 from .register import (
     pre_align_copy_wect,
     wect,
