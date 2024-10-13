@@ -51,11 +51,14 @@ pub fn tensor_to_array2<O: tch::kind::Element + Default>(
     Array2::from_shape_vec((length, width), dst).unwrap()
 }
 
-pub fn tensor_to_flat<O: tch::kind::Element + Default>(tensor: &tch::Tensor) -> Vec<O> {
+pub fn tensor_to_flat<O: tch::kind::Element + Default>(
+    tensor: &tch::Tensor,
+    kind: tch::Kind,
+) -> Vec<O> {
     let num_elems = tensor.size().into_iter().fold(1, |acc, x| acc * x) as usize;
     let mut dst = vec![O::default(); num_elems];
     tensor
-        .to_kind(tch::Kind::Float)
+        .to_kind(kind)
         .to_device(tch::Device::Cpu)
         .copy_data(&mut dst, num_elems);
     dst

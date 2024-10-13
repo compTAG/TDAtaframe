@@ -4,10 +4,49 @@ use ndarray::Axis;
 use num_traits::float::Float;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::collections::VecDeque;
 
 pub type WeightedOptComplex<P, W> =
     WeightedSimplicialComplex<Array2<P>, Option<Array2<usize>>, Option<Vec<W>>>;
 pub type OptComplex<P> = SimplicialComplex<Array2<P>, Option<Array2<usize>>>;
+
+impl<P> OptComplex<P> {
+    pub fn missing_simplex_dim(&self, dim: usize) -> bool {
+        self.simplices[dim - 1].is_none()
+    }
+
+    pub fn has_missing_dims(&self) -> bool {
+        (1..=self.size()).any(|x| self.missing_simplex_dim(x))
+    }
+
+    pub fn from_provided(
+        vertices: Array2<P>,
+        mut simplices: VecDeque<Array2<usize>>,
+        psimps: &Vec<usize>,
+    ) -> Self {
+        if psimps.len() == 0 && psimps[0] == 0 {
+            panic!("Provided simplices must be greater than 0");
+        }
+        let k = psimps.get(psimps.len() - 1).unwrap(); // the top dimension
+
+        let mut opt_simplices: Vec<Option<Array2<usize>>> = Vec::with_capacity(*k);
+
+        let mut i = 1; // i tracks the current dimension
+        psimps.iter().for_each(|&dim| {
+            while i < dim {
+                // fill missing dimensions
+                opt_simplices.push(None);
+                i += 1;
+            }
+
+            let simplex_array = simplices.pop_front().unwrap();
+            opt_simplices.push(Some(simplex_array.into_owned()));
+            i += 1;
+        });
+
+        Self::from_simplices(vertices, opt_simplices)
+    }
+}
 
 impl<P, W> WeightedOptComplex<P, W> {
     pub fn missing_simplex_dim(&self, dim: usize) -> bool {
@@ -20,6 +59,30 @@ impl<P, W> WeightedOptComplex<P, W> {
 
     pub fn has_missing_dims(&self) -> bool {
         (1..=self.size()).any(|x| self.missing_simplex_dim(x) || self.missing_weight_dim(x))
+    }
+
+    pub fn from_provided(
+        vertices: Array2<P>,
+        simplices: VecDeque<Array2<usize>>,
+        mut weights: VecDeque<Vec<W>>,
+        psimps: &Vec<usize>,
+        pweights: &Vec<usize>,
+    ) -> Self {
+        let k = psimps.get(psimps.len() - 1).unwrap(); // the top dimension
+        let structure = OptComplex::from_provided(vertices, simplices, psimps);
+
+        let mut opt_weights: Vec<Option<Vec<W>>> = Vec::with_capacity(k + 1);
+
+        let mut i = 0;
+        pweights.iter().for_each(|&dim| {
+            while i < dim {
+                opt_weights.push(None);
+                i += 1;
+            }
+            opt_weights.push(Some(weights.pop_front().unwrap()));
+            i += 1;
+        });
+        Self::from_structure(structure, opt_weights)
     }
 }
 
@@ -153,16 +216,6 @@ fn interpolate_weighted_simplices_down<F: Float>(
     let faces =
         Array2::<usize>::from_shape_vec((num_faces, face_dim + 1), face_list_flattened).unwrap();
     (faces, face_weights)
-}
-
-impl<P> OptComplex<P> {
-    pub fn missing_simplex_dim(&self, dim: usize) -> bool {
-        self.simplices[dim - 1].is_none()
-    }
-
-    pub fn has_missing_dims(&self) -> bool {
-        (1..=self.size()).any(|x| self.missing_simplex_dim(x))
-    }
 }
 
 impl<P: Float> Interpolate for OptComplex<P> {

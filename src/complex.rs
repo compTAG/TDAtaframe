@@ -227,6 +227,10 @@ impl<V, S, W> WeightedSimplicialComplex<V, S, W> {
             weights,
         }
     }
+
+    pub fn from_structure(structure: SimplicialComplex<V, S>, weights: Vec<W>) -> Self {
+        Self { structure, weights }
+    }
 }
 
 impl<V, S, W> Complex for WeightedSimplicialComplex<V, S, W>

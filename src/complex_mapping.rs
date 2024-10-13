@@ -20,7 +20,7 @@ pub trait PreMappable {
         subsample_ratio: f32,
         subsample_min: usize,
         subsample_max: usize,
-        eps: Option<Self::Point>,
+        eps: Option<f64>,
         copies: bool,
     ) -> Vec<Self::Output>;
 
@@ -48,7 +48,7 @@ where
         subsample_ratio: f32,
         subsample_min: usize,
         subsample_max: usize,
-        eps: Option<P>,
+        eps: Option<f64>,
         copies: bool,
     ) -> Vec<Self::Output> {
         let (simplices, weights) = self.get_pair_dim(align_dim);
@@ -211,13 +211,14 @@ pub fn compute_maps_svd_copies<F>(
     subsample_ratio: f32,
     subsample_min: usize,
     subsample_max: usize,
-    eps: Option<F>, // try heur fix if the weighted centroid offset is less than eps
-    copies: bool,   // always produce copies
+    eps: Option<f64>, // try heur fix if the weighted centroid offset is less than eps
+    copies: bool,     // always produce copies
 ) -> Vec<Array2<F>>
 where
     F: Float + FromPrimitive + RealField + SimpleEntity + ScalarOperand,
     usize: AsPrimitive<F>,
     f64: From<F>,
+    F: Into<f64>,
 {
     // obtain subsampled barycenters
     let barycenters = compute_barycenters(&vertices.view(), &simplices.view());
@@ -240,7 +241,7 @@ where
             Some(eps) => {
                 let w_offset =
                     vtref * weighted_centroid_offset(bary_mat, simplex_weights).transpose();
-                if w_offset.norm_l2() < eps {
+                if w_offset.norm_l2().into() < eps {
                     compute_copies(vtref)
                 } else {
                     let mut tx = IntoNdarray::into_ndarray(vtref).into_owned();
@@ -288,6 +289,6 @@ where
     let vtref = vt.as_ref();
 
     let w_offset = vtref * weighted_centroid_offset(bary_mat, simplex_weights).transpose();
-    let mut tx = IntoNdarray::into_ndarray(vtref).into_owned();
+    let tx = IntoNdarray::into_ndarray(vtref).into_owned();
     compute_heur_fix(w_offset).dot(&tx)
 }

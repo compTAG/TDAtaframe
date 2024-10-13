@@ -5,25 +5,11 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 
-class ComplexInfo(BaseModel):
-    """Info about a simplicial complex as stored in a polars dataframe."""
-
-    simplices: str  # The name of the column pointing to a simplicial complex
-    vdim: int  # The dimension of the stored vertices
-    provided_simplices: List[
-        int
-    ]  # A list indicating the dimensions of stored simplices, in sorted order. This list must exclude 0.
-
-
 class WeightedComplexInfo(BaseModel):
     """Info about a weighted simplicial complex stored in a polars dataframe."""
 
     simplices: str  # The name of the column pointing to a simplicial complex
     weights: str  # The name of the column pointing to weights of a complex
-    vdim: int  # The dimension of the stored vertices
-    provided_simplices: List[
-        int
-    ]  # A list indicating the dimensions of stored simplices, in sorted order. This list must exclude 0.
     provided_weights: List[
         int
     ]  # A list indicating the dimensions of stored weights, in sorted order. This list may contain 0.

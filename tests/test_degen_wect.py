@@ -233,30 +233,25 @@ def degen_wect(degen_vertices, degen_triangles, degen_normals) -> None:
         "ID": ["degen"],
         "simplices": {
             "vertices": [
-                degen_vertices.flatten(),
+                degen_vertices.tolist(),
             ],
             "triangles": [
-                degen_triangles.flatten(),
+                degen_triangles.tolist(),
             ],
         },
         "weights": {
             "trinormals": [
-                degen_normals,
+                degen_normals.tolist(),
             ],
         },
     }
-    print(data)
-    print(pl.DataFrame(data))
-    df = pl.DataFrame(data).cast(SCHEMA)
+    df = pl.DataFrame(data)
 
-    provided_simplices = [2]
     provided_weights = [2]
 
     wci = WeightedComplexInfo(
         simplices="simplices",
         weights="weights",
-        vdim=3,
-        provided_simplices=provided_simplices,
         provided_weights=provided_weights,
     )
 

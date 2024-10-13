@@ -1,3 +1,5 @@
+use std::any::Any;
+
 use crate::{
     complex::{Complex, Weighted},
     complex_opt::{OptComplex, WeightedOptComplex},
@@ -23,8 +25,14 @@ impl ECTParams {
         }
     }
 
-    pub fn new(embedded_dimension: i64, num_dirs: i64, num_heghts: i64, device: Device) -> Self {
-        let dirs = sample_dirs(num_dirs, embedded_dimension, device);
+    pub fn new(
+        embedded_dimension: i64,
+        num_dirs: i64,
+        num_heghts: i64,
+        device: Device,
+        kind: tch::Kind,
+    ) -> Self {
+        let dirs = sample_dirs(num_dirs, embedded_dimension, device, kind);
         Self::from_dirs(dirs, num_heghts)
     }
 }
@@ -183,7 +191,7 @@ fn sparsify_index_tensor(params: &ECTParams, index_tensor: &Tensor, weight_dtype
         params.num_heights, //.int64_value(&[0]),
     ];
 
-    Tensor::sparse_coo_tensor_indices_size(&indices, &values, &shape, (Kind::Float, device), false)
+    Tensor::sparse_coo_tensor_indices_size(&indices, &values, &shape, (weight_dtype, device), false)
 }
 
 fn ect(complex: &TensorComplex, tx: Option<Tensor>, params: &ECTParams) -> Tensor {
@@ -222,7 +230,9 @@ fn ect(complex: &TensorComplex, tx: Option<Tensor>, params: &ECTParams) -> Tenso
         contributions += simplex_contributions * (-1i64).pow(dim as u32);
     }
 
-    let ect = contributions.to_dense(None, false).cumsum(1, Kind::Float);
+    let ect = contributions
+        .to_dense(None, false)
+        .cumsum(1, vertex_coords.kind());
     ect
 }
 fn wect(complex: &WeightedTensorComplex, tx: Option<Tensor>, params: &ECTParams) -> Tensor {
@@ -232,7 +242,7 @@ fn wect(complex: &WeightedTensorComplex, tx: Option<Tensor>, params: &ECTParams)
     };
     let vertex_weights = complex.get_weights_dim(0);
     let v_indices = vertex_indices(&params, &vertex_coords);
-    let v_graphs = sparsify_index_tensor(&params, &v_indices, Kind::Float);
+    let v_graphs = sparsify_index_tensor(&params, &v_indices, vertex_coords.kind());
     let vertex_weights = vertex_weights.view([-1, 1, 1]);
     let weighted_v_graphs = vertex_weights * v_graphs;
     let mut contributions = weighted_v_graphs.internal_sparse_sum_dim(vec![0]);
@@ -259,22 +269,25 @@ fn wect(complex: &WeightedTensorComplex, tx: Option<Tensor>, params: &ECTParams)
 
         let simplex_indices = v_pair_indices.amax(&[1], false);
 
-        let simplex_graphs = sparsify_index_tensor(&params, &simplex_indices, Kind::Float);
         let simplex_weights = complex.get_weights_dim(dim).view([-1, 1, 1]);
+        let simplex_graphs = sparsify_index_tensor(&params, &simplex_indices, vertex_coords.kind());
         let weighted_simplex_graphs = simplex_weights * simplex_graphs;
         let simplex_contributions = weighted_simplex_graphs.internal_sparse_sum_dim(vec![0]);
         contributions += simplex_contributions * (-1.0f64).powi(dim as i32);
     }
 
-    let wect = contributions.to_dense(None, false).cumsum(1, Kind::Float);
+    let wect = contributions
+        .to_dense(None, false)
+        .cumsum(1, vertex_coords.kind());
     wect
 }
-fn sample2d(num_dirs: i64, device: Device) -> Tensor {
-    let t = Tensor::linspace(0.0, 6.283185, num_dirs, (Kind::Float, device));
+
+fn sample2d(num_dirs: i64, device: Device, kind: tch::Kind) -> Tensor {
+    let t = Tensor::linspace(0.0, 6.283185, num_dirs, (kind, device));
     Tensor::stack(&[t.cos(), t.sin()], 1)
 }
 
-fn sample3d(num_dirs: i64, device: Device) -> Tensor {
+fn sample3d(num_dirs: i64, device: Device, kind: tch::Kind) -> Tensor {
     let _phi = (1.0 + 5.0f64.sqrt()) / 2.0;
     let z = Tensor::linspace(
         1.0 - 1.0 / num_dirs as f64,
@@ -282,7 +295,7 @@ fn sample3d(num_dirs: i64, device: Device) -> Tensor {
         num_dirs,
         (Kind::Float, device),
     );
-    let theta = Tensor::linspace(0.0, 2.0 * 3.14159265359, num_dirs, (Kind::Float, device));
+    let theta = Tensor::linspace(0.0, 2.0 * 3.14159265359, num_dirs, (kind, device));
     let exp = Tensor::scalar_tensor(2.0, (Kind::Int64, device));
     let r: Tensor = (1.0 as f64 - z.pow(&exp)).sqrt();
     let x = &r * theta.cos();
@@ -290,10 +303,10 @@ fn sample3d(num_dirs: i64, device: Device) -> Tensor {
     Tensor::stack(&[x, y, z], 1)
 }
 
-fn sample_dirs(num_dirs: i64, dim: i64, device: Device) -> Tensor {
+fn sample_dirs(num_dirs: i64, dim: i64, device: Device, kind: tch::Kind) -> Tensor {
     match dim {
-        2 => sample2d(num_dirs, device),
-        3 => sample3d(num_dirs, device),
+        2 => sample2d(num_dirs, device, kind),
+        3 => sample3d(num_dirs, device, kind),
         _ => panic!("Invalid dimension, no implementation for >3"),
     }
 }

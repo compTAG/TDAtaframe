@@ -11,13 +11,11 @@ This whole pipeline can be called using compute_db_entry().
 import polars as pl
 
 from ..utils import unflatten_to_matrix
-from ..params import ComplexInfo, MapArgs, EctArgs, WeightedComplexInfo, MapCopyArgs
+from ..params import MapArgs, EctArgs, WeightedComplexInfo, MapCopyArgs
 from .register import (
     pre_align_copy_wect,
     wect,
     pre_align_wect,
-    # pre_align_copy_ect,
-    # pre_align_ect,
     ect,
 )
 
@@ -48,9 +46,7 @@ def premapped_copy_wects(
     wects = pre_align_copy_wect(
         pl.col(wci.simplices),
         pl.col(wci.weights),
-        provided_simplices=wci.provided_simplices,
         provided_weights=wci.provided_weights,
-        embedded_dimension=wci.vdim,
         num_heights=ea.steps,
         num_directions=ea.directions,
         align_dimension=ma.align_dimension,
@@ -90,9 +86,7 @@ def premapped_wects(
     wects = pre_align_wect(
         pl.col(wci.simplices),
         pl.col(wci.weights),
-        provided_simplices=wci.provided_simplices,
         provided_weights=wci.provided_weights,
-        embedded_dimension=wci.vdim,
         num_heights=ea.steps,
         num_directions=ea.directions,
         align_dimension=ma.align_dimension,
@@ -178,9 +172,7 @@ def wects(
     wects = wect(
         pl.col(wci.simplices),
         pl.col(wci.weights),
-        provided_simplices=wci.provided_simplices,
         provided_weights=wci.provided_weights,
-        embedded_dimension=wci.vdim,
         num_heights=ea.steps,
         num_directions=ea.directions,
     )  # output column of (n * d * d) flattened array of flattened matrices
@@ -227,7 +219,7 @@ def with_wects(
 
 
 def ects(
-    ci: ComplexInfo,
+    simplex_column: str,
     ea: EctArgs,
 ) -> pl.Expr:
     """Compute the ECTs for the given simplices. The simplices and weights columns are each flattened structs.
@@ -237,9 +229,7 @@ def ects(
         ea: Arguments for the ECTs.
     """
     ects = ect(
-        pl.col(ci.simplices),
-        provided_simplices=ci.provided_simplices,
-        embedded_dimension=ci.vdim,
+        pl.col(simplex_column),
         num_heights=ea.steps,
         num_directions=ea.directions,
     )  # output column of (n * d * d) flattened array of flattened matrices
@@ -254,7 +244,7 @@ def ects(
 
 def with_ects(
     df: pl.LazyFrame | pl.DataFrame,
-    ci: ComplexInfo,
+    simplex_column: str,
     ea: EctArgs,
     ename: str,
 ) -> pl.LazyFrame:
@@ -265,126 +255,4 @@ def with_ects(
         given by a transformation on an object.
 
     """
-    return df.lazy().with_columns(ects(ci, ea).alias(ename))
-
-
-# def premapped_copy_ects(
-#     ci: ComplexInfo,
-#     ma: MapCopyArgs,
-#     ea: EctArgs,
-# ) -> pl.Expr:
-#     """Compute the ECTs for the given simplices.
-#
-#     The simplices and weights columns are each flattened structs.
-#     Before computing the ECTs, the mesh is mapped with a rigid transformation
-#     to ensure the ECT is invariant to a rigid transformation of the input.
-#     In some cases, this results in multiple ECTs being returned by this call,
-#     corresponding to different transformations of the input mesh.
-#
-#     Args:
-#         ci: Information about the simplices and weights of the mesh.
-#         ma: Arguments for the mapping of the mesh.
-#         ea: Arguments for the ECTs.
-#
-#     Returns:
-#         A column of ECTs. Each ECT is a flattened matrix.
-#     """
-#     ects = pre_align_copy_ect(
-#         pl.col(ci.simplices),
-#         provided_simplices=ci.provided_simplices,
-#         embedded_dimension=ci.vdim,
-#         num_steps=ea.steps,
-#         num_directions=ea.directions,
-#         align_dimension=ma.align_dimension,
-#         subsample_ratio=ma.subsample_ratio,
-#         subsample_min=ma.subsample_min,
-#         subsample_max=ma.subsample_max,
-#         eps=ma.eps,
-#         copies=ma.copies,
-#     )  # output column of (n * d * d) flattened array of flattened matrices
-#
-#     # Reshape the maps
-#     ects = unflatten_to_matrix(
-#         ects, ea.steps * ea.directions
-#     )  # now (n)-list of num_height * num_direction flattened matrices
-#
-#     return ects
-#
-#
-# def premapped_ects(
-#     ci: ComplexInfo,
-#     ma: MapArgs,
-#     ea: EctArgs,
-# ) -> pl.Expr:
-#     """Compute the ECT for the given simplices.
-#
-#     Before computing the ECTs, the mesh is mapped to point the weighted centroid
-#     vector in the positive ndrant.
-#
-#     Args:
-#         ci: Information about the simplices and weights of the mesh.
-#         ma: Arguments for the mapping of the mesh.
-#         ea: Arguments for the ECTs.
-#
-#     Returns:
-#         A column of ECTs. Each ECT is a flattened matrix.
-#     """
-#     ects = pre_align_ect(
-#         pl.col(ci.simplices),
-#         provided_simplices=ci.provided_simplices,
-#         embedded_dimension=ci.vdim,
-#         num_directions=ea.directions,
-#         num_steps=ea.steps,
-#         align_dimension=ma.align_dimension,
-#         subsample_ratio=ma.subsample_ratio,
-#         subsample_min=ma.subsample_min,
-#         subsample_max=ma.subsample_max,
-#     )
-#
-#     return ects  # flattened wect
-
-# def with_premapped_copy_ects(
-#     df: pl.LazyFrame | pl.DataFrame,
-#     ci: ComplexInfo,
-#     ma: MapCopyArgs,
-#     ea: EctArgs,
-#     ename: str,
-# ) -> pl.LazyFrame:
-#     """Compute all premapped ECTs for the given mesh data and transofrmations.
-#
-#     Args:
-#         df: The dataframe containing the mesh data.
-#         ci: Information about the simplices and weights of the mesh.
-#         ma: Arguments for the mapping of the mesh.
-#         ea: Arguments for the ECTs.
-#         ename: The name of the column to store the computed ECTs.
-#
-#     Returns:
-#         A lazyframe with the computed ECTs. The rows correspond to each ECT
-#         given by a transformation on an object.
-#     """
-#     return df.lazy().with_columns(premapped_copy_ects(ci, ma, ea).alias(ename))
-#
-#
-# def with_premapped_ects(
-#     df: pl.LazyFrame | pl.DataFrame,
-#     ci: ComplexInfo,
-#     ma: MapArgs,
-#     ea: EctArgs,
-#     ename: str,
-# ) -> pl.LazyFrame:
-#     """Compute the ECT for each given simplicial complex, premapping the mesh before computing the ECT.
-#
-#     Args:
-#         df: The dataframe containing the mesh data.
-#         ci: Information about the simplices and weights of the mesh.
-#         ma: Arguments for the mapping of the mesh.
-#         ea: Arguments for the ECTs.
-#         ename: The name of the column to store the computed ECTs.
-#
-#     Returns:
-#         A lazyframe with the computed ECTs. The rows correspond to each ECT
-#         given by a transformation on an object.
-#
-#     """
-#     return df.lazy().with_columns(premapped_ects(ci, ma, ea).alias(ename))
+    return df.lazy().with_columns(ects(simplex_column, ea).alias(ename))

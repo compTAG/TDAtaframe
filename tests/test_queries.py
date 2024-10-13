@@ -16,7 +16,6 @@ from tdataframe.params import (
     MapCopyArgs,
     EctArgs,
     WeightedComplexInfo,
-    ComplexInfo,
 )
 from tdataframe.alignment import with_barycenters
 
@@ -103,15 +102,17 @@ def test_bary() -> None:
     df = pl.DataFrame(
         {
             "ID": ["octahedron"],
-            "vertices": [vertices.flatten()],
-            "triangles": [triangles.flatten()],
+            "vertices": [vertices.tolist()],
+            "triangles": [triangles.tolist()],
         },
         schema={
             "ID": pl.String,
-            "vertices": pl.List(pl.Float32),
-            "triangles": pl.List(pl.UInt32),
+            "vertices": pl.List(pl.List(pl.Float32)),
+            "triangles": pl.List(pl.List(pl.UInt32)),
         },
     )
+
+    print(df)
 
     target_bary = np.array([
         [0.6666667, 0.33333334, 1.0],
@@ -129,8 +130,6 @@ def test_bary() -> None:
             df.lazy(),
             v="vertices",
             t="triangles",
-            vdim=3,
-            sdim=2,
             b="barycenters",
         )
         .select("ID", "vertices", "triangles", "barycenters")
@@ -148,23 +147,20 @@ def test_wect() -> None:
         {
             "ID": ["octahedron", "tetrahedron"],
             "simplices": {
-                "vertices": [vertices.flatten(), vertices2.flatten()],
-                "triangles": [triangles.flatten(), triangles2.flatten()],
+                "vertices": [vertices.tolist(), vertices2.tolist()],
+                "triangles": [triangles.tolist(), triangles2.tolist()],
             },
             "weights": {
-                "trinormals": [normals, normals2],
+                "trinormals": [normals.tolist(), normals2.tolist()],
             },
         },
     )
 
-    provided_simplices = [2]
     provided_weights = [2]
 
     wci = WeightedComplexInfo(
         simplices="simplices",
         weights="weights",
-        vdim=3,
-        provided_simplices=provided_simplices,
         provided_weights=provided_weights,
     )
 
@@ -196,23 +192,20 @@ def test_premapped_wect() -> None:
         {
             "ID": ["octahedron", "tetrahedron"],
             "simplices": {
-                "vertices": [vertices.flatten(), vertices2.flatten()],
-                "triangles": [triangles.flatten(), triangles2.flatten()],
+                "vertices": [vertices.tolist(), vertices2.tolist()],
+                "triangles": [triangles.tolist(), triangles2.tolist()],
             },
             "weights": {
-                "trinormals": [normals, normals2],
+                "trinormals": [normals.tolist(), normals2.tolist()],
             },
         },
     )
 
-    provided_simplices = [2]
     provided_weights = [2]
 
     wci = WeightedComplexInfo(
         simplices="simplices",
         weights="weights",
-        vdim=3,
-        provided_simplices=provided_simplices,
         provided_weights=provided_weights,
     )
 
@@ -247,23 +240,20 @@ def test_premapped_copy_wect() -> None:
         {
             "ID": ["octahedron", "tetrahedron"],
             "simplices": {
-                "vertices": [vertices.flatten(), vertices2.flatten()],
-                "triangles": [triangles.flatten(), triangles2.flatten()],
+                "vertices": [vertices.tolist(), vertices2.tolist()],
+                "triangles": [triangles.tolist(), triangles2.tolist()],
             },
             "weights": {
-                "trinormals": [normals, normals2],
+                "trinormals": [normals.tolist(), normals2.tolist()],
             },
         },
     )
 
-    provided_simplices = [2]
     provided_weights = [2]
 
     wci = WeightedComplexInfo(
         simplices="simplices",
         weights="weights",
-        vdim=3,
-        provided_simplices=provided_simplices,
         provided_weights=provided_weights,
     )
 
@@ -302,27 +292,19 @@ def test_ect() -> None:
         {
             "ID": ["octahedron", "tetrahedron"],
             "simplices": {
-                "vertices": [vertices.flatten(), vertices2.flatten()],
-                "triangles": [triangles.flatten(), triangles2.flatten()],
+                "vertices": [vertices.tolist(), vertices2.tolist()],
+                "triangles": [triangles.tolist(), triangles2.tolist()],
             },
         },
     )
-
-    provided_simplices = [2]
-
-    ci = ComplexInfo(
-        simplices="simplices",
-        vdim=3,
-        provided_simplices=provided_simplices,
-    )
-
     ea = EctArgs(directions=25, steps=20)
 
     print(df)
+    print(df.schema)
 
     edf = with_ects(
         df.lazy(),
-        ci,
+        "simplices",
         ea=ea,
         ename="ects",
     ).select("ID", "simplices", "ects")
@@ -334,6 +316,82 @@ def test_ect() -> None:
         print(ect.reshape(25, 20))
 
 
+def test_ect32() -> None:
+    vertices, triangles, normals = build_octahedron(False, 2.0, 1.0, 3.0)
+    vertices2, _, triangles2, normals2 = build_tetrahedron()
+    d = {
+        "ID": pl.String,
+        "simplices": pl.Struct({
+            "vertices": pl.List(pl.List(pl.Float32)),
+            "triangles": pl.List(pl.List(pl.Int64)),
+        }),
+    }
+    df = pl.DataFrame(
+        {
+            "ID": ["octahedron", "tetrahedron"],
+            "simplices": {
+                "vertices": [vertices.tolist(), vertices2.tolist()],
+                "triangles": [triangles.tolist(), triangles2.tolist()],
+            },
+        },
+    ).cast(d)
+
+    ea = EctArgs(directions=25, steps=20)
+
+    print(df)
+    print(df.schema)
+
+    edf = with_ects(
+        df.lazy(),
+        "simplices",
+        ea=ea,
+        ename="ects",
+    ).select("ID", "simplices", "ects")
+    print(edf.explain(streaming=True))
+    edf = edf.collect()
+
+    ects = edf.to_dict()["ects"].to_numpy()
+    for ect in ects:
+        print(ect.reshape(25, 20))
+
+
+# def test_ect() -> None:
+#     vertices, triangles, normals = build_octahedron(False, 2.0, 1.0, 3.0)
+#     vertices2, _, triangles2, normals2 = build_tetrahedron()
+#     df = pl.DataFrame(
+#         {
+#             "ID": ["octahedron", "tetrahedron"],
+#             "simplices": {
+#                 "vertices": [vertices.tolist(), vertices2.tolist()],
+#                 "triangles": [triangles.tolist(), triangles2.tolist()],
+#             },
+#         },
+#     )
+#
+#
+#     ci = ComplexInfo(
+#         simplices="simplices",
+#         vdim=3,
+#     )
+#
+#     ea = EctArgs(directions=25, steps=20)
+#
+#     print(df)
+#
+#     edf = with_ects(
+#         df.lazy(),
+#         ci,
+#         ea=ea,
+#         ename="ects",
+#     ).select("ID", "simplices", "ects")
+#     print(edf.explain(streaming=True))
+#     edf = edf.collect()
+#
+#     ects = edf.to_dict()["ects"].to_numpy()
+#     for ect in ects:
+#         print(ect.reshape(25, 20))
+#
+#
 # def test_premapped_ect() -> None:
 #     vertices, triangles, normals = build_octahedron(False, 2.0, 1.0, 3.0)
 #     vertices2, _, triangles2, normals2 = build_tetrahedron()
@@ -341,18 +399,16 @@ def test_ect() -> None:
 #         {
 #             "ID": ["octahedron", "tetrahedron"],
 #             "simplices": {
-#                 "vertices": [vertices.flatten(), vertices2.flatten()],
-#                 "triangles": [triangles.flatten(), triangles2.flatten()],
+#                 "vertices": [vertices.tolist(), vertices2.tolist()],
+#                 "triangles": [triangles.tolist(), triangles2.tolist()],
 #             },
 #         },
 #     )
 #
-#     provided_simplices = [2]
 #
 #     ci = ComplexInfo(
 #         simplices="simplices",
 #         vdim=3,
-#         provided_simplices=provided_simplices,
 #     )
 #
 #     ea = EctArgs(directions=25, steps=20)
@@ -387,18 +443,16 @@ def test_ect() -> None:
 #         {
 #             "ID": ["octahedron", "tetrahedron"],
 #             "simplices": {
-#                 "vertices": [vertices.flatten(), vertices2.flatten()],
-#                 "triangles": [triangles.flatten(), triangles2.flatten()],
+#                 "vertices": [vertices.tolist(), vertices2.tolist()],
+#                 "triangles": [triangles.tolist(), triangles2.tolist()],
 #             },
 #         },
 #     )
 #
-#     provided_simplices = [2]
 #
 #     ci = ComplexInfo(
 #         simplices="simplices",
 #         vdim=3,
-#         provided_simplices=provided_simplices,
 #     )
 #
 #     ea = EctArgs(directions=25, steps=20)
