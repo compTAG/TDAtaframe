@@ -225,7 +225,7 @@ def ects(
     """Compute the ECTs for the given simplices. The simplices and weights columns are each flattened structs.
 
     Args:
-        ci: Information about the simplices and weights of the mesh.
+        simplex_column: The name of the column with the simplices struct.
         ea: Arguments for the ECTs.
     """
     ects = ect(
@@ -249,6 +249,12 @@ def with_ects(
     ename: str,
 ) -> pl.LazyFrame:
     """Compute the ECT for the given mesh data and transofrmations.
+
+    Args:
+        df: The dataframe to compute the ects for.
+        simplex_column: The name of the column with the simplices struct.
+        ea: Arguments for the ECT.
+        ename: The name of the output column.
 
     Returns:
         A lazyframe with the computed ECTs. The rows correspond to each ECT
