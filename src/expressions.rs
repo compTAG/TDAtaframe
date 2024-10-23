@@ -129,7 +129,7 @@ pub fn premapped_copy_wect(
     inputs: &[Series],
     kwargs: PremappedCopyWectArgs,
 ) -> PolarsResult<Series> {
-    tch::maybe_init_cuda();
+    // tch::maybe_init_cuda();
     let device = tch::Device::cuda_if_available();
 
     let mut ep_per_dim: HashMap<i64, ECTParams> = HashMap::new();
@@ -210,7 +210,7 @@ struct PremappedWectArgs {
 // and then applying the WECT.
 #[polars_expr(output_type_func=struct_use_weights)]
 pub fn premapped_wect(inputs: &[Series], kwargs: PremappedWectArgs) -> PolarsResult<Series> {
-    tch::maybe_init_cuda();
+    // tch::maybe_init_cuda();
     let device = tch::Device::cuda_if_available();
 
     let mut ep_per_dim: HashMap<i64, ECTParams> = HashMap::new();
@@ -275,7 +275,7 @@ struct WectArgs {
 
 #[polars_expr(output_type_func=struct_use_weights)]
 pub fn wect(inputs: &[Series], kwargs: WectArgs) -> PolarsResult<Series> {
-    tch::maybe_init_cuda();
+    // tch::maybe_init_cuda();
     let device = tch::Device::cuda_if_available();
     println!("Using device: {:?}", device);
 
@@ -334,7 +334,7 @@ struct EctArgs {
 // Compute the ECT for a given complex
 #[polars_expr(output_type_func=struct_use_verts)]
 pub fn ect(inputs: &[Series], kwargs: EctArgs) -> PolarsResult<Series> {
-    tch::maybe_init_cuda();
+    // tch::maybe_init_cuda();
     let device = tch::Device::cuda_if_available();
     println!("Using device: {:?}", device);
 
