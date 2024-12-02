@@ -2,19 +2,19 @@ import os
 import pprint
 
 import numpy as np
+import polars as pl
 from tdataframe.ect import (
-    with_premapped_copy_wects,
-    with_wects,
-    with_premapped_wects,
     with_ects,
     # with_premapped_copy_ects,
     # with_premapped_ects,
+    with_wects,
+    with_premapped_wects,
+    with_premapped_copy_wects,
 )
-import polars as pl
 from tdataframe.params import (
+    EctArgs,
     MapArgs,
     MapCopyArgs,
-    EctArgs,
     WeightedComplexInfo,
 )
 from tdataframe.alignment import with_barycenters
@@ -286,8 +286,8 @@ def test_premapped_copy_wect() -> None:
 
 
 def test_ect() -> None:
-    vertices, triangles, normals = build_octahedron(False, 2.0, 1.0, 3.0)
-    vertices2, _, triangles2, normals2 = build_tetrahedron()
+    vertices, triangles, _normals = build_octahedron(False, 2.0, 1.0, 3.0)
+    vertices2, _, triangles2, _normals2 = build_tetrahedron()
     df = pl.DataFrame(
         {
             "ID": ["octahedron", "tetrahedron"],
@@ -317,8 +317,8 @@ def test_ect() -> None:
 
 
 def test_ect32() -> None:
-    vertices, triangles, normals = build_octahedron(False, 2.0, 1.0, 3.0)
-    vertices2, _, triangles2, normals2 = build_tetrahedron()
+    vertices, triangles, _normals = build_octahedron(False, 2.0, 1.0, 3.0)
+    vertices2, _, triangles2, _normals2 = build_tetrahedron()
     d = {
         "ID": pl.String,
         "simplices": pl.Struct({

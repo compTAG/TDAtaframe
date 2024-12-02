@@ -11,12 +11,12 @@ This whole pipeline can be called using compute_db_entry().
 import polars as pl
 
 from ..utils import unflatten_to_matrix
-from ..params import MapArgs, EctArgs, WeightedComplexInfo, MapCopyArgs
+from ..params import EctArgs, MapArgs, MapCopyArgs, WeightedComplexInfo
 from .register import (
-    pre_align_copy_wect,
+    ect,
     wect,
     pre_align_wect,
-    ect,
+    pre_align_copy_wect,
 )
 
 """ WECTS """
