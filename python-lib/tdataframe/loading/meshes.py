@@ -75,7 +75,6 @@ class MeshLoader(Loader):
 
         Args:
             files: list of file names
-            load_func: function to load the mesh, returns vertices, triangles, and normals
 
         Returns:
             Dictionary with the fields as described above
