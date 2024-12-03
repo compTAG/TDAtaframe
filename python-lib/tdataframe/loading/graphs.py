@@ -119,6 +119,4 @@ class GraphMlLoader(GraphLoader):
             polylines,
             dtype=np.int32,
         )
-        print(vertices)
-        print(polylines)
         return [vertices, polylines]
