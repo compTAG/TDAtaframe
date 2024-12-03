@@ -13,9 +13,9 @@ import polars as pl
 from ..utils import unflatten_to_matrix
 from ..params import MapArgs, MapCopyArgs
 from .register import (
-    maps_svd_copies as _maps_svd_copies,
-    barycenters as _barycenters,
     map_svd as _map_svd,
+    barycenters as _barycenters,
+    maps_svd_copies as _maps_svd_copies,
 )
 
 

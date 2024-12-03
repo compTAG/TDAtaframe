@@ -1,11 +1,9 @@
 import os
-import pprint
 
 import numpy as np
-from tdataframe.ect import with_premapped_copy_wects, with_wects, with_premapped_wects
 import polars as pl
-from tdataframe.params import MapArgs, MapCopyArgs, EctArgs, WeightedComplexInfo
-from tdataframe.alignment import with_barycenters
+from tdataframe.ect import with_wects
+from tdataframe.params import EctArgs, WeightedComplexInfo
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -21,7 +19,7 @@ SCHEMA = {
 }
 
 
-def test_overlap_triangle():
+def test_overlap_triangle() -> None:
     # Define the vertices
     vertices = np.array(
         [
@@ -98,7 +96,7 @@ def test_overlap_triangle():
 #     degen_wect(vertices, faces, normals)
 
 
-def test_collapsed_triangle_to_origin_indexed_with_another_tri():
+def test_collapsed_triangle_to_origin_indexed_with_another_tri() -> None:
     # Define the vertices
     vertices = np.array(
         [
@@ -125,7 +123,7 @@ def test_collapsed_triangle_to_origin_indexed_with_another_tri():
     degen_wect(vertices, faces, normals)
 
 
-def test_collapsed_triangle_2_to_origin_indexed():
+def test_collapsed_triangle_2_to_origin_indexed() -> None:
     # Define the vertices
     vertices = np.array(
         [
@@ -152,7 +150,7 @@ def test_collapsed_triangle_2_to_origin_indexed():
     degen_wect(vertices, faces, normals)
 
 
-def test_collapsed_triangle_to_point_disjoint():
+def test_collapsed_triangle_to_point_disjoint() -> None:
     # Define the vertices
     vertices = np.array(
         [
@@ -178,7 +176,7 @@ def test_collapsed_triangle_to_point_disjoint():
     degen_wect(vertices, faces, normals)
 
 
-def test_collapsed_triangle_to_point_indexed():
+def test_collapsed_triangle_to_point_indexed() -> None:
     # Define the vertices
     vertices = np.array(
         [
@@ -202,7 +200,7 @@ def test_collapsed_triangle_to_point_indexed():
     degen_wect(vertices, faces, normals)
 
 
-def test_collapse_edge_to_origin():
+def test_collapse_edge_to_origin() -> None:
     # Define the vertices
     vertices = np.array(
         [
