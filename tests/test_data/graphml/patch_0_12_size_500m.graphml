@@ -1,0 +1,195 @@
+<?xml version='1.0' encoding='utf-8'?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">
+  <key id="d15" for="edge" attr.name="geometry" attr.type="string" />
+  <key id="d14" for="edge" attr.name="length" attr.type="string" />
+  <key id="d13" for="edge" attr.name="reversed" attr.type="string" />
+  <key id="d12" for="edge" attr.name="oneway" attr.type="string" />
+  <key id="d11" for="edge" attr.name="highway" attr.type="string" />
+  <key id="d10" for="edge" attr.name="name" attr.type="string" />
+  <key id="d9" for="edge" attr.name="lanes" attr.type="string" />
+  <key id="d8" for="edge" attr.name="osmid" attr.type="string" />
+  <key id="d7" for="node" attr.name="highway" attr.type="string" />
+  <key id="d6" for="node" attr.name="street_count" attr.type="string" />
+  <key id="d5" for="node" attr.name="x" attr.type="string" />
+  <key id="d4" for="node" attr.name="y" attr.type="string" />
+  <key id="d3" for="graph" attr.name="simplified" attr.type="string" />
+  <key id="d2" for="graph" attr.name="crs" attr.type="string" />
+  <key id="d1" for="graph" attr.name="created_with" attr.type="string" />
+  <key id="d0" for="graph" attr.name="created_date" attr.type="string" />
+  <graph edgedefault="directed">
+    <node id="40794986">
+      <data key="d4">45.6348425</data>
+      <data key="d5">-111.0345147</data>
+      <data key="d6">3</data>
+    </node>
+    <node id="40800995">
+      <data key="d4">45.6367614</data>
+      <data key="d5">-111.0451918</data>
+      <data key="d6">3</data>
+    </node>
+    <node id="40801019">
+      <data key="d4">45.635556</data>
+      <data key="d5">-111.044761</data>
+      <data key="d7">turning_circle</data>
+      <data key="d6">1</data>
+    </node>
+    <node id="40855483">
+      <data key="d4">45.636266</data>
+      <data key="d5">-111.046293</data>
+      <data key="d6">3</data>
+    </node>
+    <node id="40855510">
+      <data key="d4">45.6348835</data>
+      <data key="d5">-111.0458773</data>
+      <data key="d6">3</data>
+    </node>
+    <node id="40857413">
+      <data key="d4">45.6362642</data>
+      <data key="d5">-111.0393246</data>
+      <data key="d7">turning_circle</data>
+      <data key="d6">1</data>
+    </node>
+    <node id="40993840">
+      <data key="d4">45.6384719</data>
+      <data key="d5">-111.0383684</data>
+      <data key="d6">3</data>
+    </node>
+    <node id="2819574922">
+      <data key="d4">45.6348897</data>
+      <data key="d5">-111.0396236</data>
+      <data key="d6">3</data>
+    </node>
+    <edge source="40794986" target="2819574922" id="0">
+      <data key="d8">5553987</data>
+      <data key="d9">2</data>
+      <data key="d10">Goldenstein Lane</data>
+      <data key="d11">tertiary</data>
+      <data key="d12">False</data>
+      <data key="d13">True</data>
+      <data key="d14">397.25600000000003</data>
+      <data key="d15">LINESTRING (-111.0345147 45.6348425, -111.0368015 45.6348649, -111.0369895 45.6348673, -111.0396236 45.6348897)</data>
+    </edge>
+    <edge source="40800995" target="40801019" id="0">
+      <data key="d8">5544269</data>
+      <data key="d10">White Eagle Circle</data>
+      <data key="d11">residential</data>
+      <data key="d12">False</data>
+      <data key="d13">False</data>
+      <data key="d14">139.287</data>
+      <data key="d15">LINESTRING (-111.0451918 45.6367614, -111.0451753 45.6366735, -111.045161 45.636572, -111.04512 45.636418, -111.04503 45.636244, -111.044902 45.636067, -111.044861 45.635983, -111.044805 45.635809, -111.044761 45.635556)</data>
+    </edge>
+    <edge source="40800995" target="40993840" id="0">
+      <data key="d8">5554807</data>
+      <data key="d10">Peace Pipe Drive</data>
+      <data key="d11">residential</data>
+      <data key="d12">False</data>
+      <data key="d13">False</data>
+      <data key="d14">618.66</data>
+      <data key="d15">LINESTRING (-111.0451918 45.6367614, -111.0450609 45.6367716, -111.0445276 45.6368167, -111.044022 45.636853, -111.043628 45.636866, -111.043538 45.63688, -111.043436 45.636903, -111.043258 45.636971, -111.043169 45.63701, -111.043133 45.637032, -111.043007 45.63711, -111.042857 45.637227, -111.042257 45.637739, -111.041736 45.638197, -111.041445 45.638434, -111.041295 45.638522, -111.041209 45.638564, -111.041017 45.638636, -111.040716 45.638692, -111.040607 45.638704, -111.04048 45.638706, -111.040134 45.638671, -111.039901 45.638639, -111.0394582 45.6385914, -111.0387378 45.638493, -111.03849 45.6384748, -111.0383684 45.6384719)</data>
+    </edge>
+    <edge source="40800995" target="40855483" id="0">
+      <data key="d8">5554807</data>
+      <data key="d10">Peace Pipe Drive</data>
+      <data key="d11">residential</data>
+      <data key="d12">False</data>
+      <data key="d13">True</data>
+      <data key="d14">106.21900000000002</data>
+      <data key="d15">LINESTRING (-111.0451918 45.6367614, -111.0453914 45.6367425, -111.0455422 45.6367212, -111.0456479 45.6366904, -111.0458232 45.6366214, -111.046068 45.6364684, -111.0461652 45.6363887, -111.046192 45.6363641, -111.046293 45.636266)</data>
+    </edge>
+    <edge source="40801019" target="40800995" id="0">
+      <data key="d8">5544269</data>
+      <data key="d10">White Eagle Circle</data>
+      <data key="d11">residential</data>
+      <data key="d12">False</data>
+      <data key="d13">True</data>
+      <data key="d14">139.287</data>
+      <data key="d15">LINESTRING (-111.044761 45.635556, -111.044805 45.635809, -111.044861 45.635983, -111.044902 45.636067, -111.04503 45.636244, -111.04512 45.636418, -111.045161 45.636572, -111.0451753 45.6366735, -111.0451918 45.6367614)</data>
+    </edge>
+    <edge source="40855483" target="40855510" id="0">
+      <data key="d8">5546502</data>
+      <data key="d10">Little Horse Drive</data>
+      <data key="d11">residential</data>
+      <data key="d12">False</data>
+      <data key="d13">False</data>
+      <data key="d14">161.94600000000003</data>
+      <data key="d15">LINESTRING (-111.046293 45.636266, -111.0462403 45.6362225, -111.046179 45.636172, -111.046093 45.636092, -111.046024 45.635997, -111.045975 45.635903, -111.045914 45.63576, -111.045901 45.635666, -111.045893 45.635329, -111.04588 45.63518, -111.04588 45.6350675, -111.0458773 45.6348835)</data>
+    </edge>
+    <edge source="40855483" target="40800995" id="0">
+      <data key="d8">5554807</data>
+      <data key="d10">Peace Pipe Drive</data>
+      <data key="d11">residential</data>
+      <data key="d12">False</data>
+      <data key="d13">False</data>
+      <data key="d14">106.219</data>
+      <data key="d15">LINESTRING (-111.046293 45.636266, -111.046192 45.6363641, -111.0461652 45.6363887, -111.046068 45.6364684, -111.0458232 45.6366214, -111.0456479 45.6366904, -111.0455422 45.6367212, -111.0453914 45.6367425, -111.0451918 45.6367614)</data>
+    </edge>
+    <edge source="40855510" target="40855483" id="0">
+      <data key="d8">5546502</data>
+      <data key="d10">Little Horse Drive</data>
+      <data key="d11">residential</data>
+      <data key="d12">False</data>
+      <data key="d13">True</data>
+      <data key="d14">161.94600000000003</data>
+      <data key="d15">LINESTRING (-111.0458773 45.6348835, -111.04588 45.6350675, -111.04588 45.63518, -111.045893 45.635329, -111.045901 45.635666, -111.045914 45.63576, -111.045975 45.635903, -111.046024 45.635997, -111.046093 45.636092, -111.046179 45.636172, -111.0462403 45.6362225, -111.046293 45.636266)</data>
+    </edge>
+    <edge source="40855510" target="2819574922" id="0">
+      <data key="d8">5553987</data>
+      <data key="d9">2</data>
+      <data key="d10">Goldenstein Lane</data>
+      <data key="d11">tertiary</data>
+      <data key="d12">False</data>
+      <data key="d13">False</data>
+      <data key="d14">486.247</data>
+      <data key="d15">LINESTRING (-111.0458773 45.6348835, -111.0440301 45.6348962, -111.0418218 45.6349021, -111.0412176 45.6348968, -111.0397975 45.6348879, -111.0396236 45.6348897)</data>
+    </edge>
+    <edge source="40857413" target="2819574922" id="0">
+      <data key="d8">277475950</data>
+      <data key="d10">Centennial Trail</data>
+      <data key="d11">residential</data>
+      <data key="d12">False</data>
+      <data key="d13">True</data>
+      <data key="d14">154.596</data>
+    </edge>
+    <edge source="40993840" target="40800995" id="0">
+      <data key="d8">5554807</data>
+      <data key="d10">Peace Pipe Drive</data>
+      <data key="d11">residential</data>
+      <data key="d12">False</data>
+      <data key="d13">True</data>
+      <data key="d14">618.66</data>
+      <data key="d15">LINESTRING (-111.0383684 45.6384719, -111.03849 45.6384748, -111.0387378 45.638493, -111.0394582 45.6385914, -111.039901 45.638639, -111.040134 45.638671, -111.04048 45.638706, -111.040607 45.638704, -111.040716 45.638692, -111.041017 45.638636, -111.041209 45.638564, -111.041295 45.638522, -111.041445 45.638434, -111.041736 45.638197, -111.042257 45.637739, -111.042857 45.637227, -111.043007 45.63711, -111.043133 45.637032, -111.043169 45.63701, -111.043258 45.636971, -111.043436 45.636903, -111.043538 45.63688, -111.043628 45.636866, -111.044022 45.636853, -111.0445276 45.6368167, -111.0450609 45.6367716, -111.0451918 45.6367614)</data>
+    </edge>
+    <edge source="2819574922" target="40857413" id="0">
+      <data key="d8">277475950</data>
+      <data key="d10">Centennial Trail</data>
+      <data key="d11">residential</data>
+      <data key="d12">False</data>
+      <data key="d13">False</data>
+      <data key="d14">154.596</data>
+    </edge>
+    <edge source="2819574922" target="40794986" id="0">
+      <data key="d8">5553987</data>
+      <data key="d9">2</data>
+      <data key="d10">Goldenstein Lane</data>
+      <data key="d11">tertiary</data>
+      <data key="d12">False</data>
+      <data key="d13">False</data>
+      <data key="d14">397.25600000000003</data>
+      <data key="d15">LINESTRING (-111.0396236 45.6348897, -111.0369895 45.6348673, -111.0368015 45.6348649, -111.0345147 45.6348425)</data>
+    </edge>
+    <edge source="2819574922" target="40855510" id="0">
+      <data key="d8">5553987</data>
+      <data key="d9">2</data>
+      <data key="d10">Goldenstein Lane</data>
+      <data key="d11">tertiary</data>
+      <data key="d12">False</data>
+      <data key="d13">True</data>
+      <data key="d14">486.247</data>
+      <data key="d15">LINESTRING (-111.0396236 45.6348897, -111.0397975 45.6348879, -111.0412176 45.6348968, -111.0418218 45.6349021, -111.0440301 45.6348962, -111.0458773 45.6348835)</data>
+    </edge>
+    <data key="d0">2024-12-02 17:38:07</data>
+    <data key="d1">OSMnx 1.9.4</data>
+    <data key="d2">epsg:4326</data>
+    <data key="d3">True</data>
+  </graph>
+</graphml>

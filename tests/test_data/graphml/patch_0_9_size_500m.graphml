@@ -1,0 +1,109 @@
+<?xml version='1.0' encoding='utf-8'?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">
+  <key id="d15" for="edge" attr.name="maxspeed" attr.type="string" />
+  <key id="d14" for="edge" attr.name="geometry" attr.type="string" />
+  <key id="d13" for="edge" attr.name="length" attr.type="string" />
+  <key id="d12" for="edge" attr.name="reversed" attr.type="string" />
+  <key id="d11" for="edge" attr.name="oneway" attr.type="string" />
+  <key id="d10" for="edge" attr.name="highway" attr.type="string" />
+  <key id="d9" for="edge" attr.name="name" attr.type="string" />
+  <key id="d8" for="edge" attr.name="lanes" attr.type="string" />
+  <key id="d7" for="edge" attr.name="osmid" attr.type="string" />
+  <key id="d6" for="node" attr.name="street_count" attr.type="string" />
+  <key id="d5" for="node" attr.name="x" attr.type="string" />
+  <key id="d4" for="node" attr.name="y" attr.type="string" />
+  <key id="d3" for="graph" attr.name="simplified" attr.type="string" />
+  <key id="d2" for="graph" attr.name="crs" attr.type="string" />
+  <key id="d1" for="graph" attr.name="created_with" attr.type="string" />
+  <key id="d0" for="graph" attr.name="created_date" attr.type="string" />
+  <graph edgedefault="directed">
+    <node id="40857755">
+      <data key="d4">45.6347623</data>
+      <data key="d5">-111.0523913</data>
+      <data key="d6">3</data>
+    </node>
+    <node id="41035714">
+      <data key="d4">45.6346176</data>
+      <data key="d5">-111.0626488</data>
+      <data key="d6">3</data>
+    </node>
+    <node id="41088911">
+      <data key="d4">45.6291165</data>
+      <data key="d5">-111.0626674</data>
+      <data key="d6">1</data>
+    </node>
+    <node id="1513123740">
+      <data key="d4">45.6420355</data>
+      <data key="d5">-111.0626831</data>
+      <data key="d6">4</data>
+    </node>
+    <edge source="40857755" target="41035714" id="0">
+      <data key="d7">5553987</data>
+      <data key="d8">2</data>
+      <data key="d9">Goldenstein Lane</data>
+      <data key="d10">tertiary</data>
+      <data key="d11">False</data>
+      <data key="d12">True</data>
+      <data key="d13">797.7149999999999</data>
+      <data key="d14">LINESTRING (-111.0523913 45.6347623, -111.0527986 45.6347465, -111.0552271 45.6347094, -111.0626488 45.6346176)</data>
+    </edge>
+    <edge source="41035714" target="40857755" id="0">
+      <data key="d7">5553987</data>
+      <data key="d8">2</data>
+      <data key="d9">Goldenstein Lane</data>
+      <data key="d10">tertiary</data>
+      <data key="d11">False</data>
+      <data key="d12">False</data>
+      <data key="d13">797.715</data>
+      <data key="d14">LINESTRING (-111.0626488 45.6346176, -111.0552271 45.6347094, -111.0527986 45.6347465, -111.0523913 45.6347623)</data>
+    </edge>
+    <edge source="41035714" target="41088911" id="0">
+      <data key="d7">[1261974670, 1261974671]</data>
+      <data key="d8">['2', '3']</data>
+      <data key="d9">South 19th Avenue</data>
+      <data key="d10">secondary</data>
+      <data key="d15">60 mph</data>
+      <data key="d11">False</data>
+      <data key="d12">False</data>
+      <data key="d13">611.7</data>
+      <data key="d14">LINESTRING (-111.0626488 45.6346176, -111.062643 45.6331233, -111.0626674 45.6291165)</data>
+    </edge>
+    <edge source="41035714" target="1513123740" id="0">
+      <data key="d7">[1261974676, 1261974677]</data>
+      <data key="d8">['2', '3']</data>
+      <data key="d9">South 19th Avenue</data>
+      <data key="d10">secondary</data>
+      <data key="d15">60 mph</data>
+      <data key="d11">False</data>
+      <data key="d12">True</data>
+      <data key="d13">824.863</data>
+      <data key="d14">LINESTRING (-111.0626488 45.6346176, -111.0626267 45.6370815, -111.062645 45.6377154, -111.0626831 45.6420355)</data>
+    </edge>
+    <edge source="41088911" target="41035714" id="0">
+      <data key="d7">[1261974670, 1261974671]</data>
+      <data key="d8">['2', '3']</data>
+      <data key="d9">South 19th Avenue</data>
+      <data key="d10">secondary</data>
+      <data key="d15">60 mph</data>
+      <data key="d11">False</data>
+      <data key="d12">True</data>
+      <data key="d13">611.7</data>
+      <data key="d14">LINESTRING (-111.0626674 45.6291165, -111.062643 45.6331233, -111.0626488 45.6346176)</data>
+    </edge>
+    <edge source="1513123740" target="41035714" id="0">
+      <data key="d7">[1261974676, 1261974677]</data>
+      <data key="d8">['2', '3']</data>
+      <data key="d9">South 19th Avenue</data>
+      <data key="d10">secondary</data>
+      <data key="d15">60 mph</data>
+      <data key="d11">False</data>
+      <data key="d12">False</data>
+      <data key="d13">824.863</data>
+      <data key="d14">LINESTRING (-111.0626831 45.6420355, -111.062645 45.6377154, -111.0626267 45.6370815, -111.0626488 45.6346176)</data>
+    </edge>
+    <data key="d0">2024-12-02 17:38:02</data>
+    <data key="d1">OSMnx 1.9.4</data>
+    <data key="d2">epsg:4326</data>
+    <data key="d3">True</data>
+  </graph>
+</graphml>
