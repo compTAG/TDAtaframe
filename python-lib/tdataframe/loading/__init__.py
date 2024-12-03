@@ -5,3 +5,5 @@ from .meshes import (
     WeightedObjLoader as WeightedObj,
     WeightedFaceMeshLoader as WeightedFaceMesh,
 )
+
+from .graphs import GraphLoader as Graph, GraphMlLoader as GraphMl
