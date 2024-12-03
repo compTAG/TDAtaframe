@@ -1,6 +1,6 @@
-import polars as pl
-from tdataframe import loading as tdld
 import os
+
+from tdataframe import loading as tdld
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 TEST_DATA_DIR = os.path.join(THIS_DIR, "test_data")

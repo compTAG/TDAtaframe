@@ -1,3 +1,4 @@
+from .graphs import GraphLoader as Graph, GraphMlLoader as GraphMl
 from .loader import Loader as Loader
 from .meshes import (
     StlLoader as Stl,
@@ -5,5 +6,3 @@ from .meshes import (
     WeightedObjLoader as WeightedObj,
     WeightedFaceMeshLoader as WeightedFaceMesh,
 )
-
-from .graphs import GraphLoader as Graph, GraphMlLoader as GraphMl

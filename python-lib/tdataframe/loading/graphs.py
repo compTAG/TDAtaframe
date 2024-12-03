@@ -3,14 +3,14 @@ from typing import List
 
 import numpy as np
 import polars as pl
-import networkx as nx
 from shapely import wkt
+import networkx as nx
 
 from tdataframe.loading import Loader
 
 
 class GraphLoader(Loader):
-    """Loader for graphs to use as simplicial complexes"""
+    """Loader for graphs to use as simplicial complexes."""
 
     def load_complexes(self, files: List[str]) -> pl.DataFrame:
         """Load graphs into a dataframe given vertices, edges, and polylines.
@@ -61,7 +61,8 @@ class GraphMlLoader(GraphLoader):
 
 
 
-        Return vertices, edges, and polylines."""
+        Return vertices, edges, and polylines.
+        """
         # Load the graph from the GraphML file
         g = nx.read_graphml(file)
 
