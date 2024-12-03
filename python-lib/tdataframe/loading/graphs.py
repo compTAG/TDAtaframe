@@ -6,7 +6,7 @@ import polars as pl
 from shapely import wkt
 import networkx as nx
 
-from tdataframe.loading import Loader
+from ..loading import Loader
 
 
 class GraphLoader(Loader):

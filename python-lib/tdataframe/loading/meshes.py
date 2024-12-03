@@ -7,7 +7,7 @@ import trimesh
 import pywavefront
 
 from tdataframe.params import WeightedComplexInfo
-from tdataframe.loading import Loader
+from ..loading import Loader
 
 
 # Helper functions #
