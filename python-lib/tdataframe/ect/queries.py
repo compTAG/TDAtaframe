@@ -163,7 +163,7 @@ def wects(
     wci: WeightedComplexInfo,
     ea: EctArgs,
 ) -> pl.Expr:
-    """Compute the WECTs for the given simplices and weights. The simplices and weights columns are each flattened structs.
+    """Compute the WECTs for the given simplices and weights.
 
     Args:
         wci: Information about the simplices and weights of the mesh.
@@ -175,12 +175,7 @@ def wects(
         provided_weights=wci.provided_weights,
         num_heights=ea.steps,
         num_directions=ea.directions,
-    )  # output column of (n * d * d) flattened array of flattened matrices
-
-    # Reshape the maps
-    wects = unflatten_to_matrix(
-        wects, ea.steps * ea.directions
-    )  # now (n)-list of num_height * num_direction flattened matrices
+    )  # output column of (h * d) flattened matrices
 
     return wects
 
@@ -232,12 +227,7 @@ def ects(
         pl.col(simplex_column),
         num_heights=ea.steps,
         num_directions=ea.directions,
-    )  # output column of (n * d * d) flattened array of flattened matrices
-
-    # Reshape the maps
-    ects = unflatten_to_matrix(
-        ects, ea.steps * ea.directions
-    )  # now (n)-list of num_height * num_direction flattened matrices
+    )
 
     return ects
 
