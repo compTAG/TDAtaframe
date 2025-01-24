@@ -1,7 +1,9 @@
 use std::fmt::Debug;
 
-use faer::solvers::ThinSvd;
-use faer::{col, row, ComplexField, Mat, MatRef, RealField, SimpleEntity};
+use faer::mat::Mat;
+use faer::mat::MatRef;
+use faer::{col, row};
+use faer_entity::SimpleEntity;
 use faer_ext::{IntoFaer, IntoNdarray};
 use ndarray::{array, Array2, ArrayView2, Axis, ScalarOperand};
 use num_traits::{AsPrimitive, Float, FromPrimitive, ToPrimitive};
@@ -35,7 +37,7 @@ pub trait PreMappable {
 
 impl<P> PreMappable for WeightedOptComplex<P, P>
 where
-    P: Float + FromPrimitive + RealField + SimpleEntity + ScalarOperand,
+    P: Float + FromPrimitive + faer::RealField + SimpleEntity + ScalarOperand,
     f64: From<P>,
     usize: AsPrimitive<P>,
 {
@@ -106,7 +108,7 @@ fn subsample_points_to_mat<F>(
     subsample_max: usize,
 ) -> Mat<F>
 where
-    F: SimpleEntity + ComplexField,
+    F: SimpleEntity + faer::ComplexField,
 {
     let n_points = points.shape()[0];
     if n_points < points.shape()[1] {
@@ -129,16 +131,16 @@ where
 
 pub fn compute_vt<F>(points: MatRef<F>) -> Mat<F>
 where
-    F: Float + SimpleEntity + ComplexField,
+    F: Float + SimpleEntity + faer::ComplexField,
 {
-    let svd: ThinSvd<F> = points.thin_svd();
+    let svd = points.thin_svd();
     let v_t = svd.v().transpose();
     v_t.to_owned()
 }
 
 pub fn compute_point_cloud_norm_factor<F>(points: &MatRef<F>) -> F
 where
-    F: Float + SimpleEntity + RealField,
+    F: Float + SimpleEntity + faer::RealField,
     usize: AsPrimitive<F>,
 {
     points
@@ -149,7 +151,7 @@ where
 
 pub fn weighted_centroid_offset<F>(points: MatRef<F>, weights: &Vec<F>) -> row::Row<F>
 where
-    F: Float + ScalarOperand + SimpleEntity + RealField + ToPrimitive,
+    F: Float + ScalarOperand + SimpleEntity + faer::RealField + ToPrimitive,
     usize: AsPrimitive<F>,
     f64: From<F>,
 {
@@ -177,9 +179,9 @@ where
 }
 
 //TODO: generalize to n-dimensions
-pub fn compute_copies<F: Float + 'static>(tx: MatRef<F>) -> Vec<Array2<F>>
+pub fn compute_copies<'a, F>(tx: MatRef<'a, F>) -> Vec<Array2<F>>
 where
-    F: SimpleEntity,
+    F: 'a + Float + SimpleEntity,
 {
     let iden = Array2::<F>::eye(3);
     let tx = IntoNdarray::into_ndarray(tx);
@@ -215,7 +217,7 @@ pub fn compute_maps_svd_copies<F>(
     copies: bool,     // always produce copies
 ) -> Vec<Array2<F>>
 where
-    F: Float + FromPrimitive + RealField + SimpleEntity + ScalarOperand,
+    F: Float + FromPrimitive + faer::RealField + SimpleEntity + ScalarOperand,
     usize: AsPrimitive<F>,
     f64: From<F>,
     F: Into<f64>,
@@ -270,7 +272,7 @@ pub fn compute_map_svd<F>(
     subsample_max: usize,
 ) -> Array2<F>
 where
-    F: Float + FromPrimitive + RealField + SimpleEntity + ScalarOperand,
+    F: Float + FromPrimitive + faer::RealField + SimpleEntity + ScalarOperand,
     usize: AsPrimitive<F>,
     f64: From<F>,
 {
