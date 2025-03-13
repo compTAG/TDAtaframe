@@ -16,7 +16,7 @@ serde = { version = "*", features = ["derive"]}
 num-traits = { version = "*" }
 rand = { version = "*" }
 ndarray = {version = "0.16.1"}
-tch = {version = "^0.18.0"}
+tch = {version = "^0.19.0"}
 faer = {version = "^0.20", features=["rayon"]}
 faer-ext = {version = "^0.4.1", features=["ndarray"]}
 itertools = "0.13.0"
