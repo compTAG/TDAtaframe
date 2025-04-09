@@ -1,7 +1,7 @@
 [project]
 name = "TDAtaframe"
 requires-python = ">=3.12"
-version = "0.3.3"
+version = "0.4.0"
 description = "A package to handle shape-matching for meshes"
 authors = [{name="Jack Ruder", email="jackruder@montana.edu"}]
 dependencies = [
@@ -20,7 +20,7 @@ python-source = "python-lib"
 
 [tool.poetry]
 name = "TDAtaframe"
-version = "0.3.3"
+version = "0.4.0"
 description = "A package to handle shape-matching for meshes"
 authors = ["Jack Ruder <jackruder@montana.edu>"]
 
