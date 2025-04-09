@@ -3,7 +3,7 @@ TDA brought to dataframes.
 
 # Install
 TDAtaframe is available on pypi as a source distribution.
-The backend requires that you have the appropriate libtorch 2.5.1 libraries 
+The backend requires that you have the appropriate libtorch 2.6.0 libraries 
 installed on your system in the standard location.
 
 On Linux/macOS, this is typically /usr/lib, /usr/include, /usr/share for 
