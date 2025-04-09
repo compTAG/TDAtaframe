@@ -106,4 +106,38 @@ impl SimplicialComplex<BTensor, BTensor> {
     {
         Self::from::<V>(&complex.structure, device)
     }
+
+    // Add weights to an existing tensor complex
+    pub fn to_weighted(
+        &self,
+        weights: Vec<Rc<Box<Tensor>>>,
+        device: Device,
+    ) -> WeightedTensorComplex {
+        // Ensure each provided weight tensor is transferred to the given device.
+        let weights_on_device: Vec<Rc<Box<Tensor>>> = weights
+            .into_iter()
+            .map(|w| Rc::new(Box::new((**w).to(device))))
+            .collect();
+
+        WeightedTensorComplex::from_simplices(
+            self.get_vertices().clone(),
+            self.get_simplices().clone(),
+            weights_on_device,
+        )
+    }
+
+    // Add weights of value 1 to an existing tensor complex
+    pub fn to_weighted_ones(&self, device: Device) -> WeightedTensorComplex {
+        let weights: Vec<Rc<Box<Tensor>>> = self
+            .get_simplices()
+            .iter() // Iterate each list of simplices
+            .map(|s| Rc::new(Box::new(Tensor::ones(s.size()[0], (s.kind(), device)))))
+            .collect();
+
+        WeightedTensorComplex::from_simplices(
+            self.get_vertices().clone(),
+            self.get_simplices().clone(),
+            weights,
+        )
+    }
 }

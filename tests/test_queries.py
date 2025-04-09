@@ -174,7 +174,7 @@ def test_wect() -> None:
         ea=ea,
         wname="wects",
     ).select("ID", "simplices", "weights", "wects")
-    print(wdf.explain(streaming=True))
+    print(wdf.explain(engine=True))
     wdf = wdf.collect()
 
     print(wdf)
@@ -226,7 +226,7 @@ def test_premapped_wect() -> None:
         ea=ea,
         wname="wects",
     ).select("ID", "simplices", "weights", "wects")
-    print(wdf.explain(streaming=True))
+    print(wdf.explain(engine=True))
     wdf = wdf.collect()
 
     wect = wdf.to_dict()["wects"].to_numpy()
@@ -276,7 +276,7 @@ def test_premapped_copy_wect() -> None:
         ea=ea,
         wname="wects",
     ).select("ID", "simplices", "weights", "wects")
-    print(wdf.explain(streaming=True))
+    print(wdf.explain(engine=True))
     wdf = wdf.collect()
 
     wects = wdf.to_dict()["wects"].to_numpy()
@@ -308,7 +308,7 @@ def test_ect() -> None:
         ea=ea,
         ename="ects",
     ).select("ID", "simplices", "ects")
-    print(edf.explain(streaming=True))
+    print(edf.explain(engine=True))
     edf = edf.collect()
 
     ects = edf.to_dict()["ects"].to_numpy()
@@ -347,7 +347,7 @@ def test_ect32() -> None:
         ea=ea,
         ename="ects",
     ).select("ID", "simplices", "ects")
-    print(edf.explain(streaming=True))
+    print(edf.explain(engine=True))
     edf = edf.collect()
 
     ects = edf.to_dict()["ects"].to_numpy()
@@ -384,7 +384,7 @@ def test_ect32() -> None:
 #         ea=ea,
 #         ename="ects",
 #     ).select("ID", "simplices", "ects")
-#     print(edf.explain(streaming=True))
+#     print(edf.explain(engine=True))
 #     edf = edf.collect()
 #
 #     ects = edf.to_dict()["ects"].to_numpy()
@@ -428,7 +428,7 @@ def test_ect32() -> None:
 #         ea=ea,
 #         ename="ects",
 #     ).select("ID", "simplices", "ects")
-#     print(edf.explain(streaming=True))
+#     print(edf.explain(engine=True))
 #     edf = edf.collect()
 #
 #     ects = edf.to_dict()["ects"].to_numpy()
@@ -474,7 +474,7 @@ def test_ect32() -> None:
 #         ea=ea,
 #         ename="ects",
 #     ).select("ID", "simplices", "ects")
-#     print(edf.explain(streaming=True))
+#     print(edf.explain(engine=True))
 #     edf = edf.collect()
 #
 #     ects = edf.to_dict()["ects"].to_numpy()
