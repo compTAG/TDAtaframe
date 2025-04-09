@@ -171,29 +171,6 @@ fn vertex_indices(params: &ECTParams, vertex_coords: &Tensor) -> Tensor {
     v_indices
 }
 
-fn sparsify_index_tensor(params: &ECTParams, index_tensor: &Tensor, weight_dtype: Kind) -> Tensor {
-    let n = index_tensor.size()[0];
-    let device = index_tensor.device();
-    let grid = tch::Tensor::meshgrid(&[
-        Tensor::arange(n, (Kind::Int64, device)),
-        Tensor::arange(params.dirs.size()[0], (Kind::Int64, device)),
-    ]);
-    let i = grid[0].flatten(0, -1);
-    let j = grid[1].flatten(0, -1);
-    let k = index_tensor.flatten(0, -1);
-    let indices = Tensor::stack(&[&i, &j, &k], 1).transpose(0, 1);
-
-    let values = Tensor::ones(i.size(), (weight_dtype, device));
-
-    let shape = vec![
-        n,
-        params.dirs.size()[0],
-        params.num_heights, //.int64_value(&[0]),
-    ];
-
-    Tensor::sparse_coo_tensor_indices_size(&indices, &values, &shape, (weight_dtype, device), false)
-}
-
 fn ect(complex: &TensorComplex, tx: Option<Tensor>, params: &ECTParams) -> Tensor {
     let vertex_coords = match tx {
         Some(tx) => complex.get_vertices().matmul(&tx.transpose(0, 1)),
@@ -236,19 +213,33 @@ fn ect(complex: &TensorComplex, tx: Option<Tensor>, params: &ECTParams) -> Tenso
     ect
 }
 fn wect(complex: &WeightedTensorComplex, tx: Option<Tensor>, params: &ECTParams) -> Tensor {
+    let d = params.dirs.size()[0] as i64;
+    let h = params.num_heights as i64;
+
+    fn expand_tensor(t: &Tensor, d: i64) -> Tensor {
+        t.unsqueeze(0).expand(&[d, -1], false) // HACK: don't know what implicit does
+    }
+
+    // Get the optionally transformed vertex coordinates
     let vertex_coords = match tx {
         Some(tx) => complex.get_vertices().matmul(&tx.transpose(0, 1)),
         None => complex.get_vertices().shallow_clone(),
     };
-    let vertex_weights = complex.get_weights_dim(0);
     let v_indices = vertex_indices(&params, &vertex_coords);
-    let v_graphs = sparsify_index_tensor(&params, &v_indices, vertex_coords.kind());
-    let vertex_weights = vertex_weights.view([-1, 1, 1]);
-    let weighted_v_graphs = vertex_weights * v_graphs;
-    let mut contributions = weighted_v_graphs.internal_sparse_sum_dim(vec![0]);
 
+    let vertex_weights = complex.get_weights_dim(0);
+    let expnd_vertex_weights = expand_tensor(vertex_weights, d);
+
+    // Initialize the differentiated WECT
+    let mut diff_wect = Tensor::zeros(
+        &[d as i64, h as i64],
+        (vertex_coords.kind(), vertex_coords.device()),
+    )
+    .scatter_add(1, &v_indices.transpose(0, 1), &expnd_vertex_weights);
     for dim in 1..=complex.size() {
         let simplex_tensor = &complex.get_simplices_dim(dim);
+        let simplex_weights = complex.get_weights_dim(dim);
+        let expnd_simplex_weights = (-1.0f64).powi(dim as i32) * expand_tensor(simplex_weights, d);
 
         let v_pair_indices = Tensor::empty(
             // HACK: loop through and assign instead of advanced
@@ -260,25 +251,13 @@ fn wect(complex: &WeightedTensorComplex, tx: Option<Tensor>, params: &ECTParams)
             ],
             (Kind::Int64, simplex_tensor.device()),
         );
-
-        for i in 0..simplex_tensor.size()[0] {
-            let indices = simplex_tensor.get(i);
-            let indexed_values = v_indices.index_select(0, &indices);
-            v_pair_indices.get(i).copy_(&indexed_values);
-        }
-
         let simplex_indices = v_pair_indices.amax(&[1], false);
 
-        let simplex_weights = complex.get_weights_dim(dim).view([-1, 1, 1]);
-        let simplex_graphs = sparsify_index_tensor(&params, &simplex_indices, vertex_coords.kind());
-        let weighted_simplex_graphs = simplex_weights * simplex_graphs;
-        let simplex_contributions = weighted_simplex_graphs.internal_sparse_sum_dim(vec![0]);
-        contributions += simplex_contributions * (-1.0f64).powi(dim as i32);
+        diff_wect =
+            diff_wect.scatter_add(1, &simplex_indices.transpose(0, 1), &expnd_simplex_weights);
     }
 
-    let wect = contributions
-        .to_dense(None, false)
-        .cumsum(1, vertex_coords.kind());
+    let wect = diff_wect.cumsum(1, vertex_coords.kind());
     wect
 }
 
