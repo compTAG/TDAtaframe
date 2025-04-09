@@ -107,37 +107,49 @@ impl SimplicialComplex<BTensor, BTensor> {
         Self::from::<V>(&complex.structure, device)
     }
 
-    // Add weights to an existing tensor complex
-    pub fn to_weighted(
-        &self,
-        weights: Vec<Rc<Box<Tensor>>>,
-        device: Device,
-    ) -> WeightedTensorComplex {
-        // Ensure each provided weight tensor is transferred to the given device.
-        let weights_on_device: Vec<Rc<Box<Tensor>>> = weights
-            .into_iter()
-            .map(|w| Rc::new(Box::new((**w).to(device))))
-            .collect();
-
-        WeightedTensorComplex::from_simplices(
-            self.get_vertices().clone(),
-            self.get_simplices().clone(),
-            weights_on_device,
-        )
-    }
+    // // Add weights to an existing tensor complex
+    // pub fn to_weighted(
+    //     &self,
+    //     weights: Vec<Rc<Box<Tensor>>>,
+    //     device: Device,
+    // ) -> WeightedTensorComplex {
+    //     // Ensure each provided weight tensor is transferred to the given device.
+    //     let weights_on_device: Vec<Rc<Box<Tensor>>> = weights
+    //         .into_iter()
+    //         .map(|w| Rc::new(Box::new((**w).to(device))))
+    //         .collect();
+    //         TODO : Broken, weights doesn't include the vertex weights
+    //
+    //     WeightedTensorComplex::from_simplices(
+    //         self.get_vertices().clone(),
+    //         self.get_simplices().clone(),
+    //         weights_on_device,
+    //     )
+    // }
 
     // Add weights of value 1 to an existing tensor complex
     pub fn to_weighted_ones(&self, device: Device) -> WeightedTensorComplex {
-        let weights: Vec<Rc<Box<Tensor>>> = self
-            .get_simplices()
-            .iter() // Iterate each list of simplices
-            .map(|s| Rc::new(Box::new(Tensor::ones(s.size()[0], (s.kind(), device)))))
-            .collect();
+        let kind = self.get_vertices().kind();
+        let mut weights: Vec<Rc<Box<Tensor>>> = Vec::with_capacity(self.get_simplices().len() + 1);
+        // Add the vertex weights
+        weights.push(Rc::new(Box::new(Tensor::ones(
+            self.get_vertices().size()[0],
+            (kind, device),
+        ))));
+        self.get_simplices().iter().for_each(|s| {
+            // Add the weights for each simplex
+            weights.push(Rc::new(Box::new(Tensor::ones(s.size()[0], (kind, device)))));
+        });
 
-        WeightedTensorComplex::from_simplices(
+        let wtc = WeightedTensorComplex::from_simplices(
             self.get_vertices().clone(),
             self.get_simplices().clone(),
             weights,
-        )
+        );
+        println!("{}", wtc.get_vertices());
+        println!("{}", wtc.get_weights()[0]);
+        println!("{}", wtc.get_simplices_dim(1));
+        println!("{}", wtc.get_weights()[1]);
+        wtc
     }
 }
