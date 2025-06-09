@@ -14,7 +14,7 @@ impl<T> SimplexList for Array2<T> {
         self.shape()[0]
     }
 
-    fn dim(&self) -> urs rustsize {
+    fn dim(&self) -> usize {
         self.shape()[1] + 1
     }
 }

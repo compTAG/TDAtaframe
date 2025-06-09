@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "TDAtaframe"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "cudarc",
  "faer",
@@ -18,7 +18,7 @@ dependencies = [
  "polars-arrow",
  "pyo3",
  "pyo3-polars",
- "rand 0.9.1",
+ "rand 0.8.5",
  "serde",
  "tch",
 ]
