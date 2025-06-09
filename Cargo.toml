@@ -1,6 +1,6 @@
 [package]
 name = "TDAtaframe"
-version = "0.4.2"
+version = "0.4.3"
 edition = "2021"
 
 [lib]
@@ -24,6 +24,8 @@ cudarc = { version = "0.12.1", features = ["cuda-12040"] }
 faer-traits = "0.21.0"
 faer-entity = "0.20.1"
 
+[target.x86_64-unknown-linux-gnu]
+linker = "gcc"
 
 [profile.dev.package.faer]
 opt-level = 3
