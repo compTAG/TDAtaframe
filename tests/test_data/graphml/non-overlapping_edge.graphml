@@ -1,0 +1,42 @@
+<?xml version='1.0' encoding='utf-8'?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">
+  <key id="d13" for="edge" attr.name="geometry" attr.type="string" />
+  <key id="d12" for="edge" attr.name="length" attr.type="string" />
+  <key id="d11" for="edge" attr.name="reversed" attr.type="string" />
+  <key id="d10" for="edge" attr.name="oneway" attr.type="string" />
+  <key id="d9" for="edge" attr.name="highway" attr.type="string" />
+  <key id="d8" for="edge" attr.name="name" attr.type="string" />
+  <key id="d7" for="edge" attr.name="osmid" attr.type="string" />
+  <key id="d6" for="node" attr.name="street_count" attr.type="string" />
+  <key id="d5" for="node" attr.name="x" attr.type="string" />
+  <key id="d4" for="node" attr.name="y" attr.type="string" />
+  <key id="d3" for="graph" attr.name="simplified" attr.type="string" />
+  <key id="d2" for="graph" attr.name="crs" attr.type="string" />
+  <key id="d1" for="graph" attr.name="created_with" attr.type="string" />
+  <key id="d0" for="graph" attr.name="created_date" attr.type="string" />
+  <graph edgedefault="directed">
+    <node id="40698649">
+      <data key="d4">45.645489</data>
+      <data key="d5">-111.117238</data>
+      <data key="d6">1</data>
+    </node>
+    <node id="40922890">
+      <data key="d4">45.645364</data>
+      <data key="d5">-111.124941</data>
+      <data key="d6">3</data>
+    </node>
+    <edge source="40698649" target="40922890" id="0">
+      <data key="d7">5553200</data>
+      <data key="d8">Boulder Boulevard</data>
+      <data key="d9">residential</data>
+      <data key="d10">False</data>
+      <data key="d11">True</data>
+      <data key="d12">599.004</data>
+      <data key="d13">LINESTRING (-111.117238 45.645489, -111.117558 45.645495, -111.1185185 45.6454752, -111.118865 45.645468, -111.1194504 45.6454595, -111.120652 45.645442, -111.1208268 45.645438, -111.12354 45.645386, -111.124471 45.645367, -111.124941 45.645364)</data>
+    </edge>
+    <data key="d0">2025-07-02 14:20:07</data>
+    <data key="d1">OSMnx 1.9.4</data>
+    <data key="d2">epsg:4326</data>
+    <data key="d3">True</data>
+  </graph>
+</graphml>

@@ -28,6 +28,18 @@ def test_load_graphs() -> None:
     print(df)
 
 
+def test_load_undirected_graphs() -> None:
+    loader = tdld.GraphMl()
+    obj_dir = os.path.join(TEST_DATA_DIR, "graphml")
+    file = "non-overlapping_edge.graphml"
+    file_path = os.path.join(obj_dir, file)
+    # get list of files in the directory
+    files = [file_path]
+    df = loader.load_complexes(files)
+    print(df)
+    print(df.get_column("simplices").struct.field("edges"))
+
+
 if __name__ == "__main__":
     print(THIS_DIR)
     # test_load_objs()
