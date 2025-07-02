@@ -65,6 +65,7 @@ class GraphMlLoader(GraphLoader):
         """
         # Load the graph from the GraphML file
         g = nx.read_graphml(file)
+        g = nx.Graph(g)
 
         # Get the list of nodes (vertices)
         nodes = list(g.nodes())
