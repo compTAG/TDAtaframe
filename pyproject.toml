@@ -8,9 +8,9 @@ dependencies = [
     "polars>=1.14.0",
     "pydantic>=2.8.0",
     "shapely (>=2.0.7,<3.0.0)",
-    "networkx=3.5",
-    "trimesh=4.7.4",
-    "pywavefront=1.3.3",
+    "networkx==3.5",
+    "trimesh==4.7.4",
+    "pywavefront==1.3.3",
 ]
 
 [build-system]
