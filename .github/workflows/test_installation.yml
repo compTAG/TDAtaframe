@@ -1,4 +1,4 @@
-name: Test Cross-Platform Builds
+name: Cross-Platform TDAtaframe Build & Test
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-test:
-    name: Build and Test on ${{ matrix.os }} (Python ${{ matrix.python-version }})
+    name: Build & Test (${{ matrix.os }} / Python ${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -16,28 +16,34 @@ jobs:
         python-version: ["3.12"]
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install Rust toolchain
+      - name: Install Rust (nightly)
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
-          pip install torch maturin pytest
+          python -m pip install --upgrade pip
+          pip install maturin torch pytest
 
-      - name: Build package with maturin (using PyTorch lib)
+      - name: Build wheel using PyTorch's libtorch
         env:
-          LIBTORCH_USE_PYTORCH: 1
+          LIBTORCH_USE_PYTORCH = 1;
         run: |
-          maturin develop --release
+          maturin build --release --skip-auditwheel -m Cargo.toml
+
+      - name: Install built wheel
+        run: |
+          pip install --force-reinstall target/wheels/*.whl
 
       - name: Run tests
-        run: pytest
+        run: pytest -v
 
