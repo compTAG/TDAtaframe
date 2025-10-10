@@ -30,7 +30,8 @@ jobs:
 
       - name: Build and install the package
         run: |
-          maturin develop  # or: maturin build --release && pip install dist/*.whl
+          maturin build --release
+          pip install dist/*.whl
 
       - name: Verify installation
         run: python -c "import tdataframe; print('TDataFrame version:', tdataframe.__version__)"
