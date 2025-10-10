@@ -36,7 +36,7 @@ jobs:
 
       - name: Build wheel using PyTorch's libtorch
         env:
-          LIBTORCH_USE_PYTORCH = 1;
+          LIBTORCH_USE_PYTORCH: 1
         run: |
           maturin build --release --skip-auditwheel -m Cargo.toml
 
