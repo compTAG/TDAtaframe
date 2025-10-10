@@ -1,21 +1,16 @@
-// build.rs
 use std::env;
 use std::path::Path;
 use std::process::Command;
-use std::str;
 
 fn get_venv_torch_libdir() -> String {
-    // Use the Python executable from the current environment (venv)
-    let python_exe = env::var("PYTHON_SYS_EXECUTABLE")
-        .unwrap_or_else(|_| "python".to_string());
+    let python_exe = env::var("PYTHON_SYS_EXECUTABLE").unwrap_or_else(|_| "python".to_string());
 
     let py_snippet = r#"
-import sys
-import pathlib
+import sys, pathlib
 try:
     import torch
 except ImportError:
-    sys.stderr.write("ERROR: Python package 'torch' not found. Please install it in the current venv.\n")
+    sys.stderr.write("ERROR: Python package 'torch' not found.\n")
     sys.exit(1)
 
 lib_dir = pathlib.Path(torch.__file__).resolve().parent / "lib"
@@ -37,31 +32,32 @@ print(str(lib_dir))
     if !Path::new(&libdir).exists() {
         panic!("Torch lib dir '{}' does not exist", libdir);
     }
-
     libdir
 }
 
 fn main() {
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_else(|_| "unknown".into());
-
-    if target_os != "linux" {
-        panic!("This build.rs is Linux-only for now");
-    }
-
     let torch_libdir = get_venv_torch_libdir();
     println!("cargo:warning=Using torch lib dir from Python venv: {}", torch_libdir);
 
-    // Add to linker search path
+    // Add search path
     println!("cargo:rustc-link-search=native={}", torch_libdir);
 
-    // Add rpath so loader finds libtorch at runtime
-    println!("cargo:rustc-link-arg=-Wl,-rpath={}", torch_libdir);
-
-    // Standard linker flags for Linux
-    println!("cargo:rustc-link-arg=-Wl,--no-as-needed");
-    println!("cargo:rustc-link-arg=-Wl,--copy-dt-needed-entries");
-
-    // Link against libtorch
-    println!("cargo:rustc-link-arg=-ltorch");
+    match target_os.as_str() {
+        "linux" => {
+            println!("cargo:rustc-link-arg=-Wl,-rpath={}", torch_libdir);
+            println!("cargo:rustc-link-arg=-Wl,--no-as-needed");
+            println!("cargo:rustc-link-arg=-Wl,--copy-dt-needed-entries");
+            println!("cargo:rustc-link-arg=-ltorch");
+        }
+        "macos" => {
+            println!("cargo:rustc-link-arg=-Wl,-rpath,@loader_path");
+            println!("cargo:rustc-link-arg=-ltorch"); // links libtorch.dylib
+        }
+        "windows" => {
+            println!("cargo:rustc-link-lib=dylib=torch"); // links torch.dll
+        }
+        _ => panic!("Unsupported OS: {}", target_os),
+    }
 }
 
