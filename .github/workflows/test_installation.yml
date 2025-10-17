@@ -12,8 +12,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        #os: [ubuntu-latest, macos-latest, windows-latest]
-        os: [macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ["3.12"]
 
     steps:
@@ -47,4 +46,3 @@ jobs:
 
       - name: Run tests
         run: pytest -v
-
