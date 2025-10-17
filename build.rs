@@ -51,11 +51,13 @@ fn main() {
             println!("cargo:rustc-link-arg=-ltorch");
         }
         "macos" => {
-            println!("cargo:rustc-link-arg=-Wl,-rpath,@loader_path");
-            println!("cargo:rustc-link-arg=-ltorch"); // links libtorch.dylib
+            println!("cargo:rustc-link-arg=-Wl,-rpath,{}", torch_libdir);
+            println!("cargo:rustc-link-arg=-Wl,-undefined,dynamic_lookup");
         }
         "windows" => {
-            println!("cargo:rustc-link-lib=dylib=torch"); // links torch.dll
+
+            // Not yet implemented
+
         }
         _ => panic!("Unsupported OS: {}", target_os),
     }
