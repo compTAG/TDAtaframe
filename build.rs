@@ -40,7 +40,7 @@ fn main() {
     let torch_libdir = get_venv_torch_libdir();
     println!("cargo:warning=Using torch lib dir from Python venv: {}", torch_libdir);
 
-    // Add search path
+    // Add search path for all platforms
     println!("cargo:rustc-link-search=native={}", torch_libdir);
 
     match target_os.as_str() {
@@ -51,10 +51,13 @@ fn main() {
             println!("cargo:rustc-link-arg=-ltorch");
         }
         "macos" => {
-            println!("cargo:rustc-link-arg=-Wl,-rpath,@loader_path");
+            // On macOS, we need to specify the torch lib directory for linking and runtime
+            println!("cargo:rustc-link-arg=-Wl,-rpath,{}", torch_libdir);
             println!("cargo:rustc-link-arg=-ltorch"); // links libtorch.dylib
         }
         "windows" => {
+            // On Windows, we need to ensure the torch library path is properly set
+            // The torch library directory is already added to the search path above
             println!("cargo:rustc-link-lib=dylib=torch"); // links torch.dll
         }
         _ => panic!("Unsupported OS: {}", target_os),
