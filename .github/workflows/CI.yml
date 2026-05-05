@@ -1,46 +1,305 @@
-lize)]
-struct EctArgs {
-    num_heights: i64,
-    num_directions: i64,
-}
+name: CI
 
-#[polars_expr(output_type_func=struct_use_verts)]
-pub fn ect(inputs: &[Series], kwargs: EctArgs) -> PolarsResult<Series> {
-    let device = best_device();
-    println!("Using device: {:?}", device);
+on:
+  push:
+    tags:
+      - "v*"
+  pull_request:
+  workflow_dispatch:
 
-    let mut ep_per_dim: HashMap<i64, ECTParams> = HashMap::new();
+permissions:
+  contents: read
 
-    let fields = &inputs[0].struct_()?.fields_as_series();
-    let vdtype = fields[0].dtype().leaf_dtype();
-    let kind: tch::Kind = match vdtype {
-        DataType::Float32 => tch::Kind::Float,
-        DataType::Float64 => tch::Kind::Double,
-        _ => polars_bail!(InvalidOperation: format!(
-            "vertex dtype {vdtype} not supported for ect"
-        )),
-    };
+# ---------------------------------------------------------------------------
+# Strategy overview
+# ---------------------------------------------------------------------------
+# tch-rs can find libtorch inside an installed `torch` pip package when the
+# env var LIBTORCH_USE_PYTORCH=1 is set at *compile* time.  So each job just
+# does `pip install torch` (with the appropriate index URL for CUDA wheels)
+# before running maturin, and the resulting wheel works for any user who has
+# a compatible torch installed.
+#
+# Wheel matrix:
+#   Linux x86_64  – CPU-only torch  → tdataframe-*-linux_x86_64.whl
+#   Linux x86_64  – CUDA 12.x torch → tdataframe-*-linux_x86_64.whl (CUDA)
+#   macOS arm64   – CPU/MPS torch   → tdataframe-*-macosx_arm64.whl
+#   Windows x86_64 – CPU torch      → tdataframe-*-win_amd64.whl
+#
+# The CUDA and CPU Linux wheels are distinguishable by the torch extra index
+# used at install time; users pick the right one by having the right torch.
+# ---------------------------------------------------------------------------
 
-    iter_complex!(&inputs[0], |complex| {
-        complex.interpolate_missing_down();
-        let embedded_dimension = complex.get_vertices().shape()[1] as i64;
+jobs:
 
-        if !ep_per_dim.contains_key(&embedded_dimension) {
-            ep_per_dim.insert(
-                embedded_dimension,
-                ECTParams::new(
-                    embedded_dimension,
-                    kwargs.num_directions,
-                    kwargs.num_heights,
-                    device,
-                    kind,
-                ),
-            );
-        }
+  # -------------------------------------------------------------------------
+  # Linux – CPU wheel (manylinux)
+  # -------------------------------------------------------------------------
+  linux-cpu:
+    name: Linux x86_64 – CPU
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/pypa/manylinux_2_28_x86_64:latest
+    steps:
+      - uses: actions/checkout@v4
 
-        let ep = ep_per_dim.get(&embedded_dimension).unwrap();
-        let tensor_complex = TensorComplex::from(&complex, device);
-        let ect: tch::Tensor = tensor_complex.ect(ep);
-        tensor_to_flat(&ect, kind)
-    })
-}
+      - name: Install Rust nightly
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+            | sh -s -- -y --default-toolchain nightly
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install Python 3.12 + pip
+        run: |
+          /opt/python/cp312-cp312/bin/python -m ensurepip
+          /opt/python/cp312-cp312/bin/pip install --upgrade pip
+
+      - name: Install torch (CPU)
+        run: |
+          /opt/python/cp312-cp312/bin/pip install \
+            torch --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Install maturin
+        run: /opt/python/cp312-cp312/bin/pip install "maturin>=1.7,<2"
+
+      - name: Build wheel
+        env:
+          LIBTORCH_USE_PYTORCH: "1"
+          LIBTORCH_BYPASS_VERSION_CHECK: "1"
+          # Point maturin at our Python so it finds the torch install
+          PYO3_PYTHON: /opt/python/cp312-cp312/bin/python
+        run: |
+          source $HOME/.cargo/env
+          /opt/python/cp312-cp312/bin/maturin build \
+            --release \
+            --interpreter /opt/python/cp312-cp312/bin/python \
+            --out dist-cpu
+
+      - name: Repair wheel (auditwheel)
+        run: |
+          /opt/python/cp312-cp312/bin/pip install auditwheel
+          for whl in dist-cpu/*.whl; do
+            /opt/python/cp312-cp312/bin/auditwheel repair "$whl" \
+              --plat manylinux_2_28_x86_64 \
+              -w dist-repaired-cpu
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-linux-cpu
+          path: dist-repaired-cpu/
+
+  # -------------------------------------------------------------------------
+  # Linux – CUDA wheel (manylinux)
+  # We build against the CUDA-enabled torch; the resulting wheel works on
+  # any machine with a compatible NVIDIA driver + CUDA runtime.
+  # -------------------------------------------------------------------------
+  linux-cuda:
+    name: Linux x86_64 – CUDA
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/pypa/manylinux_2_28_x86_64:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust nightly
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+            | sh -s -- -y --default-toolchain nightly
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install Python 3.12 + pip
+        run: |
+          /opt/python/cp312-cp312/bin/python -m ensurepip
+          /opt/python/cp312-cp312/bin/pip install --upgrade pip
+
+      - name: Install torch (CUDA 12.x)
+        # PyTorch's cu124 index ships libtorch with CUDA 12.4 support.
+        # Adjust the index URL here if you want a different CUDA version.
+        run: |
+          /opt/python/cp312-cp312/bin/pip install \
+            torch --index-url https://download.pytorch.org/whl/cu124
+
+      - name: Install maturin
+        run: /opt/python/cp312-cp312/bin/pip install "maturin>=1.7,<2"
+
+      - name: Build wheel
+        env:
+          LIBTORCH_USE_PYTORCH: "1"
+          LIBTORCH_BYPASS_VERSION_CHECK: "1"
+          PYO3_PYTHON: /opt/python/cp312-cp312/bin/python
+        run: |
+          source $HOME/.cargo/env
+          /opt/python/cp312-cp312/bin/maturin build \
+            --release \
+            --interpreter /opt/python/cp312-cp312/bin/python \
+            --out dist-cuda
+
+      - name: Repair wheel (auditwheel)
+        run: |
+          /opt/python/cp312-cp312/bin/pip install auditwheel
+          # Allow the CUDA libraries — they come from the torch package so
+          # auditwheel would otherwise complain they aren't in the manylinux set.
+          TORCH_LIB=$(/opt/python/cp312-cp312/bin/python -c \
+            "import torch, pathlib; print(pathlib.Path(torch.__file__).parent / 'lib')")
+          for whl in dist-cuda/*.whl; do
+            LD_LIBRARY_PATH="$TORCH_LIB:$LD_LIBRARY_PATH" \
+            /opt/python/cp312-cp312/bin/auditwheel repair "$whl" \
+              --plat manylinux_2_28_x86_64 \
+              -w dist-repaired-cuda
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-linux-cuda
+          path: dist-repaired-cuda/
+
+  # -------------------------------------------------------------------------
+  # macOS – arm64 (Apple Silicon)  CPU + MPS via best_device()
+  # -------------------------------------------------------------------------
+  macos-arm64:
+    name: macOS arm64
+    runs-on: macos-14   # arm64 runner
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust nightly
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+            | sh -s -- -y --default-toolchain nightly
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install torch (CPU/MPS)
+        run: pip install torch
+
+      - name: Install maturin
+        run: pip install "maturin>=1.7,<2"
+
+      - name: Build wheel
+        env:
+          LIBTORCH_USE_PYTORCH: "1"
+          LIBTORCH_BYPASS_VERSION_CHECK: "1"
+          # Ensure the linker can find libtorch dylibs at build time
+          DYLD_LIBRARY_PATH: >-
+            $(python -c
+            "import torch, pathlib;
+            print(pathlib.Path(torch.__file__).parent / 'lib')")
+        run: |
+          maturin build --release --out dist
+
+      - name: Repair wheel (delocate)
+        run: |
+          pip install delocate
+          TORCH_LIB=$(python -c \
+            "import torch, pathlib; \
+             print(pathlib.Path(torch.__file__).parent / 'lib')")
+          for whl in dist/*.whl; do
+            DYLD_LIBRARY_PATH="$TORCH_LIB" delocate-wheel -w dist-repaired "$whl"
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-macos-arm64
+          path: dist-repaired/
+
+  # -------------------------------------------------------------------------
+  # Windows x86_64 – CPU
+  # -------------------------------------------------------------------------
+  windows:
+    name: Windows x86_64
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust nightly
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install torch (CPU)
+        run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Install maturin
+        run: pip install "maturin>=1.7,<2"
+
+      - name: Build wheel
+        env:
+          LIBTORCH_USE_PYTORCH: "1"
+          LIBTORCH_BYPASS_VERSION_CHECK: "1"
+        run: maturin build --release --out dist
+
+      - name: Repair wheel (delvewheel)
+        shell: pwsh
+        run: |
+          pip install delvewheel
+          $torchLib = python -c "import torch, pathlib; print(pathlib.Path(torch.__file__).parent / 'lib')"
+          foreach ($whl in Get-ChildItem dist\*.whl) {
+            delvewheel repair $whl --add-path $torchLib -w dist-repaired
+          }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-windows
+          path: dist-repaired/
+
+  # -------------------------------------------------------------------------
+  # Source distribution (sdist) – for developers who want to build from source
+  # -------------------------------------------------------------------------
+  sdist:
+    name: Source distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install maturin
+        run: pip install "maturin>=1.7,<2"
+
+      - name: Build sdist
+        run: maturin sdist --out dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-sdist
+          path: dist/
+
+  # -------------------------------------------------------------------------
+  # Publish all artifacts to PyPI on tag push
+  # -------------------------------------------------------------------------
+  release:
+    name: Publish to PyPI
+    needs: [linux-cpu, linux-cuda, macos-arm64, windows, sdist]
+    runs-on: ubuntu-latest
+    # Only publish on tag pushes, not on PRs
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    environment:
+      name: pypi
+      url: https://pypi.org/p/tdataframe
+    permissions:
+      id-token: write   # needed for trusted publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          path: dist
+          merge-multiple: true
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        # Uses OIDC trusted publishing — no API token needed.
+        # Configure the trusted publisher on PyPI for this repo + workflow.
+        # Alternatively, set secrets.PYPI_API_TOKEN and use:
+        #   with:
+        #     user: __token__
+        #     password: ${{ secrets.PYPI_API_TOKEN }}
