@@ -1,5 +1,3 @@
-use std::any::Any;
-
 use crate::{
     complex::{Complex, Weighted},
     complex_opt::{OptComplex, WeightedOptComplex},
@@ -9,6 +7,18 @@ use crate::{
 use ndarray::Array2;
 use tch::{kind::Element, Device, Kind, Tensor};
 
+/// Select the best available device: CUDA > MPS > CPU.
+/// This is called once per expression invocation so the overhead is minimal.
+pub fn best_device() -> Device {
+    if tch::Cuda::is_available() {
+        Device::Cuda(0)
+    } else if tch::utils::has_mps() {
+        Device::Mps
+    } else {
+        Device::Cpu
+    }
+}
+
 #[derive(Debug)]
 pub struct ECTParams {
     pub dirs: Tensor,
@@ -17,41 +27,33 @@ pub struct ECTParams {
 
 impl ECTParams {
     pub fn from_dirs(dirs: Tensor, num_heights: i64) -> Self {
-        // let device = dirs.device();
-        // // let height_tensor = Tensor::scalar_tensor(num_heights, (kind::Kind::Int64, device));
         ECTParams {
             dirs: dirs.set_requires_grad(false),
-            num_heights, //height_tensor.set_requires_grad(false),
+            num_heights,
         }
     }
 
     pub fn new(
         embedded_dimension: i64,
         num_dirs: i64,
-        num_heghts: i64,
+        num_heights: i64,
         device: Device,
         kind: tch::Kind,
     ) -> Self {
         let dirs = sample_dirs(num_dirs, embedded_dimension, device, kind);
-        Self::from_dirs(dirs, num_heghts)
+        Self::from_dirs(dirs, num_heights)
     }
 }
 
 pub trait TensorEct {
     type RotMat;
-    // Computes the ECT for the complex, applying a rotation matrix to the vertices beforehand.
     fn pre_rot_ect(&self, params: &ECTParams, tx: Self::RotMat) -> Tensor;
-
-    // Computes the ECT for the complex.
     fn ect(&self, params: &ECTParams) -> Tensor;
 }
 
 pub trait TensorWect {
     type RotMat;
-    // Computes the WECT for the complex, applying a rotation matrix to the vertices beforehand.
     fn pre_rot_wect(&self, params: &ECTParams, tx: Self::RotMat) -> Tensor;
-
-    // Computes the WECT for the complex.
     fn wect(&self, params: &ECTParams) -> Tensor;
 }
 
@@ -98,15 +100,13 @@ where
         if self.has_missing_dims() {
             panic!("Cannot compute WECT with missing dimensions");
         }
-        let device = tch::Device::cuda_if_available();
+        let device = best_device();
         let tensor_complex = WeightedTensorComplex::from(self, device);
         tensor_complex.wect(params)
     }
 
-    // You probably don't want to call this over multiple TX, since each call
-    // recreates a tensor complex
     fn pre_rot_wect(&self, params: &ECTParams, tx: Self::RotMat) -> Tensor {
-        let device = tch::Device::cuda_if_available();
+        let device = best_device();
         let tensor_complex = WeightedTensorComplex::from(self, device);
         tensor_complex.pre_rot_wect(params, array2_to_tensor(&tx, device))
     }
@@ -122,15 +122,13 @@ where
         if self.has_missing_dims() {
             panic!("Cannot compute ECT with missing dimensions");
         }
-        let device = tch::Device::cuda_if_available();
+        let device = best_device();
         let tensor_complex = TensorComplex::from_weighted(self, device);
         tensor_complex.ect(params)
     }
 
-    // You probably don't want to call this over multiple TX, since each call
-    // recreates a tensor complex
     fn pre_rot_ect(&self, params: &ECTParams, tx: Self::RotMat) -> Tensor {
-        let device = tch::Device::cuda_if_available();
+        let device = best_device();
         let tensor_complex = TensorComplex::from_weighted(self, device);
         tensor_complex.pre_rot_ect(params, array2_to_tensor(&tx, device))
     }
@@ -145,22 +143,20 @@ where
         if self.has_missing_dims() {
             panic!("Cannot compute ECT with missing dimensions");
         }
-        let device = tch::Device::cuda_if_available();
+        let device = best_device();
         let tensor_complex = TensorComplex::from(self, device);
         tensor_complex.ect(params)
     }
 
-    // You probably don't want to call this over multiple TX, since each call
-    // recreates a tensor complex
     fn pre_rot_ect(&self, params: &ECTParams, tx: Self::RotMat) -> Tensor {
-        let device = tch::Device::cuda_if_available();
+        let device = best_device();
         let tensor_complex = TensorComplex::from(self, device);
         tensor_complex.pre_rot_ect(params, array2_to_tensor(&tx, device))
     }
 }
 
 fn vertex_indices(params: &ECTParams, vertex_coords: &Tensor) -> Tensor {
-    let v_norms = vertex_coords.norm_scalaropt_dim(2, [1], false); // vertex l2 norms
+    let v_norms = vertex_coords.norm_scalaropt_dim(2, [1], false);
     let max_height = v_norms.max();
 
     let v_heights: tch::Tensor = vertex_coords.matmul(&params.dirs.transpose(0, 1));
@@ -175,15 +171,15 @@ fn ect(complex: &TensorComplex, tx: Option<Tensor>, params: &ECTParams) -> Tenso
     let wc = complex.to_weighted_ones(complex.get_vertices().device());
     wect(&wc, tx, params)
 }
+
 fn wect(complex: &WeightedTensorComplex, tx: Option<Tensor>, params: &ECTParams) -> Tensor {
     let d = params.dirs.size()[0] as i64;
     let h = params.num_heights as i64;
 
     fn expand_tensor(t: &Tensor, d: i64) -> Tensor {
-        t.unsqueeze(0).expand(&[d, -1], false) // HACK: don't know what implicit does
+        t.unsqueeze(0).expand(&[d, -1], false)
     }
 
-    // Get the optionally transformed vertex coordinates
     let vertex_coords = match tx {
         Some(tx) => complex.get_vertices().matmul(&tx.transpose(0, 1)),
         None => complex.get_vertices().shallow_clone(),
@@ -193,20 +189,18 @@ fn wect(complex: &WeightedTensorComplex, tx: Option<Tensor>, params: &ECTParams)
     let vertex_weights = complex.get_weights_dim(0);
     let expnd_vertex_weights = expand_tensor(vertex_weights, d);
 
-    // Initialize the differentiated WECT
     let mut diff_wect = Tensor::zeros(
         &[d as i64, h as i64],
         (vertex_coords.kind(), vertex_coords.device()),
     )
     .scatter_add(1, &v_indices.transpose(0, 1), &expnd_vertex_weights);
+
     for dim in 1..=complex.size() {
         let simplex_tensor = &complex.get_simplices_dim(dim);
         let simplex_weights = complex.get_weights_dim(dim);
         let expnd_simplex_weights = (-1.0f64).powi(dim as i32) * expand_tensor(simplex_weights, d);
 
         let v_pair_indices = Tensor::zeros(
-            // HACK: loop through and assign instead of advanced
-            // indexing
             vec![
                 simplex_tensor.size()[0],
                 simplex_tensor.size()[1],
@@ -237,7 +231,6 @@ fn sample2d(num_dirs: i64, device: Device, kind: tch::Kind) -> Tensor {
 }
 
 fn sample3d(num_dirs: i64, device: Device, kind: tch::Kind) -> Tensor {
-    let _phi = (1.0 + 5.0f64.sqrt()) / 2.0;
     let z = Tensor::linspace(
         1.0 - 1.0 / num_dirs as f64,
         -1.0 + 1.0 / num_dirs as f64,

@@ -8,19 +8,30 @@ name = "tdataframe"
 crate-type = ["cdylib"]
 
 [dependencies]
-polars = { version = "^0.48", features=["nightly", "performant", "serde", "polars-ops", "dtype-array", "dtype-struct", "ndarray"]}
-polars-arrow = { version = "^0.48"}
+polars = { version = "^0.48", features = [
+    "nightly",
+    "performant",
+    "serde",
+    "polars-ops",
+    "dtype-array",
+    "dtype-struct",
+    "ndarray",
+] }
+polars-arrow = { version = "^0.48" }
 pyo3 = { version = "^0.24.2", features = ["extension-module", "abi3-py312"] }
-pyo3-polars = { version = "^0.21.0", features = ["derive", "dtype-array", "dtype-struct"] }
-serde = { version = "*", features = ["derive"]}
+pyo3-polars = { version = "^0.21.0", features = [
+    "derive",
+    "dtype-array",
+    "dtype-struct",
+] }
+serde = { version = "*", features = ["derive"] }
 num-traits = { version = "*" }
 rand = { version = "*" }
-ndarray = {version = "0.16.1"}
-tch = {version = "^0.20.0"}
-faer = {version = "^0.20", features=["rayon"]}
-faer-ext = {version = "^0.4.1", features=["ndarray"]}
+ndarray = { version = "0.16.1" }
+tch = { version = "^0.20.0" }
+faer = { version = "^0.20", features = ["rayon"] }
+faer-ext = { version = "^0.4.1", features = ["ndarray"] }
 itertools = "0.13.0"
-cudarc = { version = "0.12.1", features = ["cuda-12040"] }
 faer-traits = "0.21.0"
 faer-entity = "0.20.1"
 

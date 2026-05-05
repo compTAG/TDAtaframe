@@ -1,108 +1,90 @@
 [project]
-name = "TDAtaframe"
+name = "tdataframe"
 requires-python = ">=3.12"
 version = "0.5.0"
 description = "A package to handle shape-matching for meshes"
-authors = [{name="Jack Ruder", email="jackruder@montana.edu"}]
+authors = [{ name = "Jack Ruder", email = "jackruder@montana.edu" }]
 dependencies = [
     "polars>=1.14.0",
     "pydantic>=2.8.0",
-    "shapely (>=2.0.7,<3.0.0)",
+    "shapely>=2.0.7,<3.0.0",
+    # torch is required at runtime for the bundled libtorch to work correctly.
+    # We don't pin a specific version — any reasonably recent torch (>=2.0) works.
+    "torch>=2.0.0",
 ]
 
 [build-system]
-requires = ["maturin>=1.7,<2.0", "polars>=0.42"]
+requires = ["maturin>=1.7,<2.0"]
 build-backend = "maturin"
 
 [tool.maturin]
-module_name = "TDAtaframe._internal"
+module-name = "tdataframe._internal"
 python-source = "python-lib"
+# Pass LIBTORCH_USE_PYTORCH=1 so tch-rs finds libtorch inside the torch
+# package that is installed in the build environment.  The CI workflow
+# runs `pip install torch` before invoking maturin, so this always works.
+# Developers building locally just need `pip install torch` in their venv.
+features = ["pyo3/extension-module"]
 
 [tool.poetry]
-name = "TDAtaframe"
+name = "tdataframe"
 version = "0.5.0"
 description = "A package to handle shape-matching for meshes"
 authors = ["Jack Ruder <jackruder@montana.edu>"]
 
 [tool.poetry.group.dev.dependencies]
 maturin = ">=1.7.0,<2"
-ruff = '>=0.5'
-pytest = '>=8.3'
-sphinx = '>=7.0.0'
-sphinx-autodoc-typehints = '>=2.2'
-sphinx-rtd-theme = '>=2.0'
+ruff = ">=0.5"
+pytest = ">=8.3"
+sphinx = ">=7.0.0"
+sphinx-autodoc-typehints = ">=2.2"
+sphinx-rtd-theme = ">=2.0"
 numpy = ">=2.0.0"
+torch = ">=2.0.0"
 
 [tool.poetry.dependencies]
 python = "^3.12"
-polars = {version = ">=1.14.0", extras = ["async"]}
+polars = { version = ">=1.14.0", extras = ["async"] }
 pywavefront = "^1.3.3"
 trimesh = "^4.5.2"
 networkx = "^3.4.2"
 shapely = "^2.0.6"
+torch = ">=2.0.0"
 
 [tool.pytest.ini_options]
 addopts = ["-v", "--color=yes"]
 testpaths = ["./tests"]
 
 [tool.ruff]
-# Exclude a variety of commonly ignored directories.
 exclude = [
-    ".bzr",
-    ".direnv",
-    ".eggs",
-    ".git",
-    ".git-rewrite",
-    ".hg",
-    ".ipynb_checkpoints",
-    ".mypy_cache",
-    ".nox",
-    ".pants.d",
-    ".pyenv",
-    ".pytest_cache",
-    ".pytype",
-    ".ruff_cache",
-    ".svn",
-    ".tox",
-    ".venv",
-    ".vscode",
-    "__pypackages__",
-    "_build",
-    "buck-out",
-    "build",
-    "dist",
-    "node_modules",
-    "site-packages",
-    "venv",
+    ".bzr", ".direnv", ".eggs", ".git", ".git-rewrite", ".hg",
+    ".ipynb_checkpoints", ".mypy_cache", ".nox", ".pants.d", ".pyenv",
+    ".pytest_cache", ".pytype", ".ruff_cache", ".svn", ".tox", ".venv",
+    ".vscode", "__pypackages__", "_build", "buck-out", "build", "dist",
+    "node_modules", "site-packages", "venv",
 ]
-
-# Same as Black.
 line-length = 88
 indent-width = 4
 target-version = "py312"
 fix = true
 
 [tool.ruff.lint]
-# Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`)  codes by default.
 select = [
-    "E2", "E3", "E4", "E7", "E9", 
-    "F", 
-    "W291", "W292", 
+    "E2", "E3", "E4", "E7", "E9",
+    "F",
+    "W291", "W292",
     "I", "D", "N", "ANN", "B", "COM",
     "RET",
     "SIM",
     "TD006", "TD004", "TD007", "TD001",
     "NPY",
     "RUF",
-     ]
+]
 ignore = ["D206", "D300", "COM812", "COM819", "RET504"]
 preview = true
 
-# Allow fix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]
 unfixable = []
-
-# Allow unused variables when underscore-prefixed.
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 [tool.ruff.lint.pydocstyle]
@@ -113,22 +95,11 @@ combine-as-imports = true
 force-sort-within-sections = true
 length-sort = true
 
-
 [tool.ruff.format]
-# Like Black, use double quotes for strings.
 quote-style = "double"
-
-# Like Black, indent with spaces, rather than tabs.
 indent-style = "space"
-
-# Like Black, respect magic trailing commas.
 skip-magic-trailing-comma = false
-
-# Like Black, automatically detect the appropriate line ending.
 line-ending = "lf"
-
 docstring-code-format = true
 docstring-code-line-length = 30
-
 preview = true
-
