@@ -3,303 +3,153 @@ name: CI
 on:
   push:
     tags:
-      - "v*"
+      - '*'
   pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
-# ---------------------------------------------------------------------------
-# Strategy overview
-# ---------------------------------------------------------------------------
-# tch-rs can find libtorch inside an installed `torch` pip package when the
-# env var LIBTORCH_USE_PYTORCH=1 is set at *compile* time.  So each job just
-# does `pip install torch` (with the appropriate index URL for CUDA wheels)
-# before running maturin, and the resulting wheel works for any user who has
-# a compatible torch installed.
-#
-# Wheel matrix:
-#   Linux x86_64  – CPU-only torch  → tdataframe-*-linux_x86_64.whl
-#   Linux x86_64  – CUDA 12.x torch → tdataframe-*-linux_x86_64.whl (CUDA)
-#   macOS arm64   – CPU/MPS torch   → tdataframe-*-macosx_arm64.whl
-#   Windows x86_64 – CPU torch      → tdataframe-*-win_amd64.whl
-#
-# The CUDA and CPU Linux wheels are distinguishable by the torch extra index
-# used at install time; users pick the right one by having the right torch.
-# ---------------------------------------------------------------------------
-
 jobs:
+  # linux:
+  #   runs-on: ubuntu-latest
+  #   container: quay.io/pypa/manylinux_2_28_x86_64:latest 
+  #   strategy:
+  #     matrix:
+  #       platform:
+  #         - x86_64
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Verify Python and Pip installation
+  #       run: |
+  #         python3.12 --version
+  #         python3.12 -m ensurepip
+  #         python3.11 -m ensurepip
+  #     - name: Install nightly Rust
+  #       run: curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
+  #
+  #     - name: Set up Rust toolchain and dependencies
+  #       run: source $HOME/.cargo/env
+  #
+  #     - name: Install unzip
+  #       run: yum install -y unzip curl
+  #
+  #     - name: Download and extract LibTorch
+  #       run: |
+  #         curl -L https://download.pytorch.org/libtorch/cu124/libtorch-cxx11-abi-shared-with-deps-2.4.0%2Bcu124.zip -o libtorch.zip
+  #         unzip -o libtorch.zip -d $(pwd)
+  #         rm libtorch.zip
+  #         echo "LIBTORCH=$(pwd)/libtorch" >> $GITHUB_ENV
+  #         echo "LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+  #
+  #     
+  #
+  #     - name: Install Python maturin and build wheels for Python 3.11 and 3.12
+  #       run: |
+  #         source $HOME/.cargo/env
+  #         export LIBTORCH=$(pwd)/libtorch
+  #         export LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH
+  #         for PYBIN in /opt/python/cp311*/bin /opt/python/cp312*/bin; do
+  #           "${PYBIN}/pip" install maturin
+  #           "${PYBIN}/python" -m maturin build -m Cargo.toml --release --manylinux 2_28
+  #         done
+  #
+  #     # - name: Auditwheel repair
+  #     #   run: |
+  #     #     for wheel in target/wheels/*.whl; do
+  #     #         auditwheel show "${wheel}"
+  #     #         auditwheel repair "${wheel}" --plat manylinux_2_31_${{ matrix.platform }}
+  #     #     done
+  #
+  #     - name: Upload wheels
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: wheels-linux-${{ matrix.platform }}
+  #         path: target/wheels 
+  #
+  #
+  # macos:
+  #   runs-on: macos-14
+  #   strategy:
+  #     matrix:
+  #       platform:
+  #         - aarch64
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     
+  #     - name: Install nightly Rust
+  #       run: curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
+  #       
+  #     - name: Install LibTorch
+  #       run: .github/workflows/install_libtorch_macsilicon.sh
+  #        
+  #     - name: Set environment variables
+  #       run: |
+  #         echo "LIBTORCH=$(pwd)/libtorch" >> $GITHUB_ENV
+  #         echo "LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+  #     
+  #     - name: Install Python maturin and build wheels
+  #       run: |
+  #         source $HOME/.cargo/env
+  #         export LIBTORCH=$(pwd)/libtorch
+  #         export LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH
+  #         pip install maturin
+  #         maturin build -m Cargo.toml --release
+  #       
+  #     - name: Upload wheels
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: wheels-macos-${{ matrix.platform }}
+  #         path: target/wheels
 
-  # -------------------------------------------------------------------------
-  # Linux – CPU wheel (manylinux)
-  # -------------------------------------------------------------------------
-  linux-cpu:
-    name: Linux x86_64 – CPU
-    runs-on: ubuntu-latest
-    container:
-      image: quay.io/pypa/manylinux_2_28_x86_64:latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust nightly
-        run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-            | sh -s -- -y --default-toolchain nightly
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-
-      - name: Install Python 3.12 + pip
-        run: |
-          /opt/python/cp312-cp312/bin/python -m ensurepip
-          /opt/python/cp312-cp312/bin/pip install --upgrade pip
-
-      - name: Install torch (CPU)
-        run: |
-          /opt/python/cp312-cp312/bin/pip install \
-            torch --index-url https://download.pytorch.org/whl/cpu
-
-      - name: Install maturin
-        run: /opt/python/cp312-cp312/bin/pip install "maturin>=1.7,<2"
-
-      - name: Build wheel
-        env:
-          LIBTORCH_USE_PYTORCH: "1"
-          LIBTORCH_BYPASS_VERSION_CHECK: "1"
-          # Point maturin at our Python so it finds the torch install
-          PYO3_PYTHON: /opt/python/cp312-cp312/bin/python
-        run: |
-          source $HOME/.cargo/env
-          /opt/python/cp312-cp312/bin/maturin build \
-            --release \
-            --interpreter /opt/python/cp312-cp312/bin/python \
-            --out dist-cpu
-
-      - name: Repair wheel (auditwheel)
-        run: |
-          /opt/python/cp312-cp312/bin/pip install auditwheel
-          for whl in dist-cpu/*.whl; do
-            /opt/python/cp312-cp312/bin/auditwheel repair "$whl" \
-              --plat manylinux_2_28_x86_64 \
-              -w dist-repaired-cpu
-          done
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: wheels-linux-cpu
-          path: dist-repaired-cpu/
-
-  # -------------------------------------------------------------------------
-  # Linux – CUDA wheel (manylinux)
-  # We build against the CUDA-enabled torch; the resulting wheel works on
-  # any machine with a compatible NVIDIA driver + CUDA runtime.
-  # -------------------------------------------------------------------------
-  linux-cuda:
-    name: Linux x86_64 – CUDA
-    runs-on: ubuntu-latest
-    container:
-      image: quay.io/pypa/manylinux_2_28_x86_64:latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust nightly
-        run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-            | sh -s -- -y --default-toolchain nightly
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-
-      - name: Install Python 3.12 + pip
-        run: |
-          /opt/python/cp312-cp312/bin/python -m ensurepip
-          /opt/python/cp312-cp312/bin/pip install --upgrade pip
-
-      - name: Install torch (CUDA 12.x)
-        # PyTorch's cu124 index ships libtorch with CUDA 12.4 support.
-        # Adjust the index URL here if you want a different CUDA version.
-        run: |
-          /opt/python/cp312-cp312/bin/pip install \
-            torch --index-url https://download.pytorch.org/whl/cu124
-
-      - name: Install maturin
-        run: /opt/python/cp312-cp312/bin/pip install "maturin>=1.7,<2"
-
-      - name: Build wheel
-        env:
-          LIBTORCH_USE_PYTORCH: "1"
-          LIBTORCH_BYPASS_VERSION_CHECK: "1"
-          PYO3_PYTHON: /opt/python/cp312-cp312/bin/python
-        run: |
-          source $HOME/.cargo/env
-          /opt/python/cp312-cp312/bin/maturin build \
-            --release \
-            --interpreter /opt/python/cp312-cp312/bin/python \
-            --out dist-cuda
-
-      - name: Repair wheel (auditwheel)
-        run: |
-          /opt/python/cp312-cp312/bin/pip install auditwheel
-          # Allow the CUDA libraries — they come from the torch package so
-          # auditwheel would otherwise complain they aren't in the manylinux set.
-          TORCH_LIB=$(/opt/python/cp312-cp312/bin/python -c \
-            "import torch, pathlib; print(pathlib.Path(torch.__file__).parent / 'lib')")
-          for whl in dist-cuda/*.whl; do
-            LD_LIBRARY_PATH="$TORCH_LIB:$LD_LIBRARY_PATH" \
-            /opt/python/cp312-cp312/bin/auditwheel repair "$whl" \
-              --plat manylinux_2_28_x86_64 \
-              -w dist-repaired-cuda
-          done
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: wheels-linux-cuda
-          path: dist-repaired-cuda/
-
-  # -------------------------------------------------------------------------
-  # macOS – arm64 (Apple Silicon)  CPU + MPS via best_device()
-  # -------------------------------------------------------------------------
-  macos-arm64:
-    name: macOS arm64
-    runs-on: macos-14   # arm64 runner
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust nightly
-        run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-            | sh -s -- -y --default-toolchain nightly
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install torch (CPU/MPS)
-        run: pip install torch
-
-      - name: Install maturin
-        run: pip install "maturin>=1.7,<2"
-
-      - name: Build wheel
-        env:
-          LIBTORCH_USE_PYTORCH: "1"
-          LIBTORCH_BYPASS_VERSION_CHECK: "1"
-          # Ensure the linker can find libtorch dylibs at build time
-          DYLD_LIBRARY_PATH: >-
-            $(python -c
-            "import torch, pathlib;
-            print(pathlib.Path(torch.__file__).parent / 'lib')")
-        run: |
-          maturin build --release --out dist
-
-      - name: Repair wheel (delocate)
-        run: |
-          pip install delocate
-          TORCH_LIB=$(python -c \
-            "import torch, pathlib; \
-             print(pathlib.Path(torch.__file__).parent / 'lib')")
-          for whl in dist/*.whl; do
-            DYLD_LIBRARY_PATH="$TORCH_LIB" delocate-wheel -w dist-repaired "$whl"
-          done
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: wheels-macos-arm64
-          path: dist-repaired/
-
-  # -------------------------------------------------------------------------
-  # Windows x86_64 – CPU
-  # -------------------------------------------------------------------------
-  windows:
-    name: Windows x86_64
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust nightly
-        uses: dtolnay/rust-toolchain@nightly
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install torch (CPU)
-        run: pip install torch --index-url https://download.pytorch.org/whl/cpu
-
-      - name: Install maturin
-        run: pip install "maturin>=1.7,<2"
-
-      - name: Build wheel
-        env:
-          LIBTORCH_USE_PYTORCH: "1"
-          LIBTORCH_BYPASS_VERSION_CHECK: "1"
-        run: maturin build --release --out dist
-
-      - name: Repair wheel (delvewheel)
-        shell: pwsh
-        run: |
-          pip install delvewheel
-          $torchLib = python -c "import torch, pathlib; print(pathlib.Path(torch.__file__).parent / 'lib')"
-          foreach ($whl in Get-ChildItem dist\*.whl) {
-            delvewheel repair $whl --add-path $torchLib -w dist-repaired
-          }
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: wheels-windows
-          path: dist-repaired/
-
-  # -------------------------------------------------------------------------
-  # Source distribution (sdist) – for developers who want to build from source
-  # -------------------------------------------------------------------------
   sdist:
-    name: Source distribution
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install maturin
-        run: pip install "maturin>=1.7,<2"
-
       - name: Build sdist
-        run: maturin sdist --out dist
-
-      - uses: actions/upload-artifact@v4
+        uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist
+          rust-toolchain: nightly
+      - name: Upload sdist
+        uses: actions/upload-artifact@v4
         with:
           name: wheels-sdist
-          path: dist/
+          path: dist
 
-  # -------------------------------------------------------------------------
-  # Publish all artifacts to PyPI on tag push
-  # -------------------------------------------------------------------------
   release:
-    name: Publish to PyPI
-    needs: [linux-cpu, linux-cuda, macos-arm64, windows, sdist]
+    name: Release
+    # needs: ['sdist', 'linux', 'macos']
+    needs: ['sdist']
     runs-on: ubuntu-latest
-    # Only publish on tag pushes, not on PRs
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-    environment:
-      name: pypi
-      url: https://pypi.org/p/tdataframe
-    permissions:
-      id-token: write   # needed for trusted publishing
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: wheels-*
+          name: wheels-sdist
           path: dist
-          merge-multiple: true
 
+      # - uses: actions/download-artifact@v4
+      #   with:
+      #     name: wheels-linux-x86_64
+      #     path: dist
+      #
+      # - uses: actions/download-artifact@v4
+      #   with:
+      #     name: wheels-macos-aarch64
+      #     path: dist
+
+            
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        # Uses OIDC trusted publishing — no API token needed.
-        # Configure the trusted publisher on PyPI for this repo + workflow.
-        # Alternatively, set secrets.PYPI_API_TOKEN and use:
-        #   with:
-        #     user: __token__
-        #     password: ${{ secrets.PYPI_API_TOKEN }}
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
+
+      # - name: Publish to Test PyPI
+      #   uses: pypa/gh-action-pypi-publish@release/v1
+      #   with:
+      #     repository_url: https://test.pypi.org/legacy/
+      #     user: __token__
+      #     password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+
