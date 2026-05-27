@@ -31,6 +31,12 @@ jobs:
       - name: Install Rust nightly
         uses: dtolnay/rust-toolchain@nightly
 
+      - name: Show Rust toolchain
+        run: |
+          rustc --version
+          cargo --version
+          cargo +nightly --version
+
       - name: Install Python build and test dependencies
         shell: python
         run: |
@@ -54,6 +60,8 @@ jobs:
           ])
 
       - name: Build wheel
+        env:
+          RUSTUP_TOOLCHAIN: nightly
         run: python -m maturin build --release --out dist
 
       - name: Upload wheel artifact
