@@ -33,6 +33,7 @@ jobs:
 
       - name: Show Rust toolchain
         run: |
+          rustup override set nightly
           rustc --version
           cargo --version
           cargo +nightly --version
