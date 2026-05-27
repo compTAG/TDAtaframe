@@ -11,6 +11,80 @@ permissions:
   contents: read
 
 jobs:
+  wheel-test:
+    name: Build and test wheel (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-14
+          - windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Rust nightly
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Install Python build and test dependencies
+        shell: python
+        run: |
+          import subprocess
+          import sys
+
+          subprocess.check_call([
+              sys.executable,
+              "-m",
+              "pip",
+              "install",
+              "maturin>=1.7,<2",
+              "pytest",
+              "polars>=1.14.0",
+              "pydantic>=2.8.0",
+              "shapely>=2.0.7,<3.0.0",
+              "pywavefront",
+              "trimesh",
+              "networkx",
+              "torch==2.7.0",
+          ])
+
+      - name: Build wheel
+        run: python -m maturin build --release --out dist
+
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.os }}
+          path: dist/*.whl
+
+      - name: Install built wheel
+        shell: python
+        run: |
+          from pathlib import Path
+          import subprocess
+          import sys
+
+          wheels = sorted(Path("dist").glob("*.whl"))
+          if not wheels:
+              raise SystemExit("No wheel produced")
+          subprocess.check_call([
+              sys.executable,
+              "-m",
+              "pip",
+              "install",
+              "--force-reinstall",
+              "--no-deps",
+              str(wheels[-1]),
+          ])
+
+      - name: Run Python tests
+        run: python -m pytest tests
+
   # linux:
   #   runs-on: ubuntu-latest
   #   container: quay.io/pypa/manylinux_2_28_x86_64:latest 
@@ -152,4 +226,3 @@ jobs:
       #     repository_url: https://test.pypi.org/legacy/
       #     user: __token__
       #     password: ${{ secrets.TEST_PYPI_API_TOKEN }}
-

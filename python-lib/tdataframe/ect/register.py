@@ -4,7 +4,10 @@ from pathlib import Path
 from polars.plugins import register_plugin_function
 from polars.type_aliases import IntoExpr
 
+from tdataframe._torch import ensure_torch_loaded
+
 lib = Path(__file__).parent.parent
+ensure_torch_loaded()
 
 
 def pre_align_copy_wect(

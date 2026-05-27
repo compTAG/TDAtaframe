@@ -8,14 +8,20 @@ dependencies = [
     "polars>=1.14.0",
     "pydantic>=2.8.0",
     "shapely (>=2.0.7,<3.0.0)",
+    "torch==2.7.0",
 ]
 
 [build-system]
-requires = ["maturin>=1.7,<2.0", "polars>=0.42"]
+requires = [
+    "maturin>=1.7,<2.0",
+    "patchelf>=0.17.2; sys_platform == 'linux'",
+    "polars>=0.42",
+    "torch==2.7.0",
+]
 build-backend = "maturin"
 
 [tool.maturin]
-module_name = "TDAtaframe._internal"
+module-name = "tdataframe._internal"
 python-source = "python-lib"
 
 [tool.poetry]
@@ -40,6 +46,7 @@ pywavefront = "^1.3.3"
 trimesh = "^4.5.2"
 networkx = "^3.4.2"
 shapely = "^2.0.6"
+torch = "==2.7.0"
 
 [tool.pytest.ini_options]
 addopts = ["-v", "--color=yes"]
@@ -131,4 +138,3 @@ docstring-code-format = true
 docstring-code-line-length = 30
 
 preview = true
-
