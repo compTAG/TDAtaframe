@@ -1,0 +1,177 @@
+#!/usr/bin/env python3
+"""Build the package as pip would, install the wheel, and run tests."""
+
+from __future__ import annotations
+
+import argparse
+import os
+from pathlib import Path
+import platform
+import shutil
+import subprocess
+import sys
+import tempfile
+import textwrap
+import venv
+
+
+ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_WORKDIR = ROOT / ".artifacts" / "wheel-install-test"
+DEFAULT_DIST = DEFAULT_WORKDIR / "dist"
+
+
+def run(
+    cmd: list[str | Path],
+    *,
+    cwd: Path = ROOT,
+    env: dict[str, str] | None = None,
+) -> None:
+    printable = " ".join(str(part) for part in cmd)
+    print(f"+ {printable}", flush=True)
+    subprocess.run([str(part) for part in cmd], cwd=cwd, env=env, check=True)
+
+
+def venv_python(venv_dir: Path) -> Path:
+    if os.name == "nt":
+        return venv_dir / "Scripts" / "python.exe"
+    return venv_dir / "bin" / "python"
+
+
+def create_venv(venv_dir: Path) -> Path:
+    venv.EnvBuilder(with_pip=True, clear=True).create(venv_dir)
+    return venv_python(venv_dir)
+
+
+def latest_wheel(dist: Path) -> Path:
+    wheels = sorted(dist.glob("*.whl"), key=lambda path: path.stat().st_mtime)
+    if not wheels:
+        raise SystemExit(f"No wheel was built in {dist}")
+    return wheels[-1]
+
+
+def clean_path(path: Path) -> None:
+    if path.exists():
+        shutil.rmtree(path)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--workdir",
+        type=Path,
+        default=DEFAULT_WORKDIR,
+        help="Scratch directory for temporary virtualenvs.",
+    )
+    parser.add_argument(
+        "--dist",
+        type=Path,
+        default=DEFAULT_DIST,
+        help="Directory where the built wheel should be written.",
+    )
+    parser.add_argument(
+        "--keep",
+        action="store_true",
+        help=(
+            "Keep prior workdir contents instead of starting from a clean "
+            "scratch area."
+        ),
+    )
+    parser.add_argument(
+        "pytest_args",
+        nargs=argparse.REMAINDER,
+        help="Optional pytest arguments, for example: -- tests/test_loading.py",
+    )
+    return parser.parse_args()
+
+
+def main() -> None:
+    args = parse_args()
+    workdir = args.workdir.resolve()
+    dist = args.dist.resolve()
+
+    if not args.keep:
+        clean_path(workdir)
+        clean_path(dist)
+
+    workdir.mkdir(parents=True, exist_ok=True)
+    dist.mkdir(parents=True, exist_ok=True)
+
+    env = os.environ.copy()
+    env["LIBTORCH_USE_PYTORCH"] = "1"
+
+    print(
+        textwrap.dedent(
+            f"""
+            Platform: {platform.platform()}
+            Driver Python: {sys.executable}
+            Workdir: {workdir}
+            Dist: {dist}
+            """
+        ).strip(),
+        flush=True,
+    )
+
+    build_python = create_venv(workdir / "build-venv")
+    run(
+        [
+            build_python,
+            "-m",
+            "pip",
+            "wheel",
+            "--no-deps",
+            "--wheel-dir",
+            dist,
+            ROOT,
+        ],
+        env=env,
+    )
+
+    wheel = latest_wheel(dist)
+    print(f"Built wheel: {wheel.name}", flush=True)
+
+    test_python = create_venv(workdir / "test-venv")
+    run([test_python, "-m", "pip", "install", wheel, "pytest>=8.3"], env=env)
+    run([test_python, "-m", "pip", "check"], env=env)
+
+    smoke = r"""
+import importlib.metadata as metadata
+from pathlib import Path
+
+import torch
+import tdataframe
+from tdataframe._torch import ensure_torch_loaded
+
+ensure_torch_loaded()
+import tdataframe._internal as internal
+from tdataframe.alignment import with_barycenters
+from tdataframe.loading import GraphMl, Stl, WeightedObj
+
+torch_version = torch.__version__.split("+", 1)[0]
+if torch_version != "2.7.0":
+    raise SystemExit(f"Expected torch 2.7.0 for tch 0.20.0, got {torch.__version__}")
+
+print("TDAtaframe", metadata.version("TDAtaframe"), Path(tdataframe.__file__).parent)
+print("Rust extension", internal.__version__)
+print("Torch", torch.__version__, Path(torch.__file__).parent)
+print(
+    "Smoke imports",
+    with_barycenters.__name__,
+    GraphMl.__name__,
+    Stl.__name__,
+    WeightedObj.__name__,
+)
+"""
+    with tempfile.TemporaryDirectory() as tmp:
+        run([test_python, "-c", smoke], cwd=Path(tmp), env=env)
+
+    pytest_args = args.pytest_args
+    if pytest_args and pytest_args[0] == "--":
+        pytest_args = pytest_args[1:]
+    if not pytest_args:
+        pytest_args = ["tests"]
+
+    run([test_python, "-m", "pytest", *pytest_args], env=env)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,21 +1,31 @@
 [project]
 name = "TDAtaframe"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.14"
 version = "0.5.0"
 description = "A package to handle shape-matching for meshes"
+readme = "README.md"
 authors = [{name="Jack Ruder", email="jackruder@montana.edu"}]
 dependencies = [
-    "polars>=1.14.0",
+    "networkx>=3.4.2,<4.0.0",
+    "numpy>=2.0.0",
+    "polars==1.30.0",
     "pydantic>=2.8.0",
-    "shapely (>=2.0.7,<3.0.0)",
+    "pywavefront>=1.3.3,<2.0.0",
+    "shapely>=2.0.7,<3.0.0",
     "torch==2.7.0",
+    "trimesh>=4.5.2,<5.0.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.3",
 ]
 
 [build-system]
 requires = [
     "maturin>=1.7,<2.0",
     "patchelf>=0.17.2; sys_platform == 'linux'",
-    "polars>=0.42",
+    "polars==1.30.0",
     "torch==2.7.0",
 ]
 build-backend = "maturin"
@@ -37,14 +47,14 @@ pytest = '>=8.3'
 sphinx = '>=7.0.0'
 sphinx-autodoc-typehints = '>=2.2'
 sphinx-rtd-theme = '>=2.0'
-numpy = ">=2.0.0"
 
 [tool.poetry.dependencies]
-python = "^3.12"
-polars = {version = ">=1.14.0", extras = ["async"]}
+python = ">=3.12,<3.14"
+networkx = "^3.4.2"
+numpy = ">=2.0.0"
+polars = {version = "==1.30.0", extras = ["async"]}
 pywavefront = "^1.3.3"
 trimesh = "^4.5.2"
-networkx = "^3.4.2"
 shapely = "^2.0.6"
 torch = "==2.7.0"
 

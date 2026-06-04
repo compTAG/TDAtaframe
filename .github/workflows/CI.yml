@@ -2,191 +2,85 @@ name: CI
 
 on:
   push:
+    branches:
+      - main
+      - master
     tags:
-      - '*'
+      - "*"
   pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
+env:
+  LIBTORCH_USE_PYTORCH: "1"
+
 jobs:
   wheel-test:
-    name: Build and test wheel (${{ matrix.os }})
+    name: Wheel install test (${{ matrix.label }}, py${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - ubuntu-latest
-          - macos-14
-          - windows-latest
+        include:
+          - label: linux-x64
+            os: ubuntu-24.04
+            python-version: "3.12"
+          - label: linux-x64
+            os: ubuntu-24.04
+            python-version: "3.13"
+          - label: macos-x64
+            os: macos-13
+            python-version: "3.12"
+          - label: macos-arm64
+            os: macos-14
+            python-version: "3.12"
+          - label: windows-x64
+            os: windows-2022
+            python-version: "3.12"
+
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
 
       - name: Install Rust nightly
         uses: dtolnay/rust-toolchain@nightly
 
-      - name: Show Rust toolchain
+      - name: Cache Cargo downloads and target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/git
+            ~/.cargo/registry
+            target
+          key: ${{ runner.os }}-${{ runner.arch }}-py${{ matrix.python-version }}-cargo-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-py${{ matrix.python-version }}-cargo-
+
+      - name: Show toolchains
         run: |
-          rustup override set nightly
+          python --version
           rustc --version
           cargo --version
-          cargo +nightly --version
 
-      - name: Install Python build and test dependencies
-        shell: python
-        run: |
-          import subprocess
-          import sys
+      - name: Build wheel, install it into a clean venv, and run tests
+        run: python scripts/wheel_install_test.py --dist dist
 
-          subprocess.check_call([
-              sys.executable,
-              "-m",
-              "pip",
-              "install",
-              "maturin>=1.7,<2",
-              "pytest",
-              "polars>=1.14.0",
-              "pydantic>=2.8.0",
-              "shapely>=2.0.7,<3.0.0",
-              "pywavefront",
-              "trimesh",
-              "networkx",
-              "torch==2.7.0",
-          ])
-
-      - name: Build wheel
-        env:
-          RUSTUP_TOOLCHAIN: nightly
-        run: python -m maturin build --release --out dist
-
-      - name: Upload wheel artifact
+      - name: Upload tested wheel
+        if: matrix.python-version == '3.12'
         uses: actions/upload-artifact@v4
         with:
-          name: wheel-${{ matrix.os }}
+          name: wheel-${{ matrix.label }}
           path: dist/*.whl
 
-      - name: Install built wheel
-        shell: python
-        run: |
-          from pathlib import Path
-          import subprocess
-          import sys
-
-          wheels = sorted(Path("dist").glob("*.whl"))
-          if not wheels:
-              raise SystemExit("No wheel produced")
-          subprocess.check_call([
-              sys.executable,
-              "-m",
-              "pip",
-              "install",
-              "--force-reinstall",
-              "--no-deps",
-              str(wheels[-1]),
-          ])
-
-      - name: Run Python tests
-        run: python -m pytest tests
-
-  # linux:
-  #   runs-on: ubuntu-latest
-  #   container: quay.io/pypa/manylinux_2_28_x86_64:latest 
-  #   strategy:
-  #     matrix:
-  #       platform:
-  #         - x86_64
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: Verify Python and Pip installation
-  #       run: |
-  #         python3.12 --version
-  #         python3.12 -m ensurepip
-  #         python3.11 -m ensurepip
-  #     - name: Install nightly Rust
-  #       run: curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
-  #
-  #     - name: Set up Rust toolchain and dependencies
-  #       run: source $HOME/.cargo/env
-  #
-  #     - name: Install unzip
-  #       run: yum install -y unzip curl
-  #
-  #     - name: Download and extract LibTorch
-  #       run: |
-  #         curl -L https://download.pytorch.org/libtorch/cu124/libtorch-cxx11-abi-shared-with-deps-2.4.0%2Bcu124.zip -o libtorch.zip
-  #         unzip -o libtorch.zip -d $(pwd)
-  #         rm libtorch.zip
-  #         echo "LIBTORCH=$(pwd)/libtorch" >> $GITHUB_ENV
-  #         echo "LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
-  #
-  #     
-  #
-  #     - name: Install Python maturin and build wheels for Python 3.11 and 3.12
-  #       run: |
-  #         source $HOME/.cargo/env
-  #         export LIBTORCH=$(pwd)/libtorch
-  #         export LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH
-  #         for PYBIN in /opt/python/cp311*/bin /opt/python/cp312*/bin; do
-  #           "${PYBIN}/pip" install maturin
-  #           "${PYBIN}/python" -m maturin build -m Cargo.toml --release --manylinux 2_28
-  #         done
-  #
-  #     # - name: Auditwheel repair
-  #     #   run: |
-  #     #     for wheel in target/wheels/*.whl; do
-  #     #         auditwheel show "${wheel}"
-  #     #         auditwheel repair "${wheel}" --plat manylinux_2_31_${{ matrix.platform }}
-  #     #     done
-  #
-  #     - name: Upload wheels
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: wheels-linux-${{ matrix.platform }}
-  #         path: target/wheels 
-  #
-  #
-  # macos:
-  #   runs-on: macos-14
-  #   strategy:
-  #     matrix:
-  #       platform:
-  #         - aarch64
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     
-  #     - name: Install nightly Rust
-  #       run: curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
-  #       
-  #     - name: Install LibTorch
-  #       run: .github/workflows/install_libtorch_macsilicon.sh
-  #        
-  #     - name: Set environment variables
-  #       run: |
-  #         echo "LIBTORCH=$(pwd)/libtorch" >> $GITHUB_ENV
-  #         echo "LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
-  #     
-  #     - name: Install Python maturin and build wheels
-  #       run: |
-  #         source $HOME/.cargo/env
-  #         export LIBTORCH=$(pwd)/libtorch
-  #         export LD_LIBRARY_PATH=$(pwd)/libtorch/lib:$LD_LIBRARY_PATH
-  #         pip install maturin
-  #         maturin build -m Cargo.toml --release
-  #       
-  #     - name: Upload wheels
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: wheels-macos-${{ matrix.platform }}
-  #         path: target/wheels
-
   sdist:
-    runs-on: ubuntu-latest
+    name: Build sdist
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: Build sdist
@@ -198,40 +92,26 @@ jobs:
       - name: Upload sdist
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-sdist
-          path: dist
+          name: sdist
+          path: dist/*.tar.gz
 
   release:
-    name: Release
-    # needs: ['sdist', 'linux', 'macos']
-    needs: ['sdist']
-    runs-on: ubuntu-latest
+    name: Publish release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs:
+      - wheel-test
+      - sdist
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: wheels-sdist
+          name: sdist
           path: dist
 
-      # - uses: actions/download-artifact@v4
-      #   with:
-      #     name: wheels-linux-x86_64
-      #     path: dist
-      #
-      # - uses: actions/download-artifact@v4
-      #   with:
-      #     name: wheels-macos-aarch64
-      #     path: dist
-
-            
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           user: __token__
           password: ${{ secrets.PYPI_API_TOKEN }}
-
-      # - name: Publish to Test PyPI
-      #   uses: pypa/gh-action-pypi-publish@release/v1
-      #   with:
-      #     repository_url: https://test.pypi.org/legacy/
-      #     user: __token__
-      #     password: ${{ secrets.TEST_PYPI_API_TOKEN }}
