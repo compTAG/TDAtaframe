@@ -15,6 +15,7 @@ permissions:
 
 env:
   LIBTORCH_USE_PYTORCH: "1"
+  PYTORCH_CPU_INDEX_URL: https://download.pytorch.org/whl/cpu
 
 jobs:
   wheel-test:
@@ -69,7 +70,11 @@ jobs:
           cargo --version
 
       - name: Build wheel, install it into a clean venv, and run tests
-        run: python scripts/wheel_install_test.py --dist dist
+        run: >
+          python scripts/wheel_install_test.py
+          --dist dist
+          --preinstall-build-deps
+          --torch-index-url "${{ env.PYTORCH_CPU_INDEX_URL }}"
 
       - name: Upload tested wheel
         if: matrix.python-version == '3.12'
