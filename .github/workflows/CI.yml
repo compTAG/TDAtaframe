@@ -33,7 +33,7 @@ jobs:
             os: ubuntu-24.04
             python-version: "3.13"
           - label: macos-x64
-            os: macos-13
+            os: macos-15-intel
             python-version: "3.12"
           - label: macos-arm64
             os: macos-14
@@ -79,11 +79,47 @@ jobs:
           --torch-index-url "${{ env.PYTORCH_CPU_INDEX_URL }}"
 
       - name: Upload tested wheel
-        if: matrix.python-version == '3.12'
+        if: matrix.python-version == '3.12' && matrix.label != 'linux-x64'
         uses: actions/upload-artifact@v4
         with:
           name: wheel-${{ matrix.label }}
           path: dist/*.whl
+
+  manylinux-wheel:
+    name: Build and test manylinux wheel
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      CIBW_BUILD: cp312-manylinux_x86_64
+      CIBW_ARCHS_LINUX: x86_64
+      CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
+      CIBW_ENVIRONMENT_LINUX: >
+        PATH="$HOME/.cargo/bin:$PATH"
+        LIBTORCH_USE_PYTORCH=1
+        PIP_INDEX_URL=https://download.pytorch.org/whl/cpu
+        PIP_EXTRA_INDEX_URL=https://pypi.org/simple
+      CIBW_BEFORE_ALL_LINUX: >
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs
+        | sh -s -- -y --default-toolchain nightly-2025-05-30
+      CIBW_REPAIR_WHEEL_COMMAND_LINUX: >
+        auditwheel repair
+        --exclude libtorch.so
+        --exclude libtorch_cpu.so
+        --exclude libc10.so
+        -w {dest_dir} {wheel}
+      CIBW_TEST_REQUIRES: pytest>=8.3
+      CIBW_TEST_COMMAND: python -m pytest {project}/tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and test manylinux wheel
+        uses: pypa/cibuildwheel@v2.23.3
+
+      - name: Upload tested manylinux wheel
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-linux-x64
+          path: wheelhouse/*.whl
 
   sdist:
     name: Build sdist
@@ -95,18 +131,19 @@ jobs:
         with:
           command: sdist
           args: --out dist
-          rust-toolchain: nightly
+          rust-toolchain: nightly-2025-05-30
       - name: Upload sdist
         uses: actions/upload-artifact@v4
         with:
           name: sdist
           path: dist/*.tar.gz
 
-  release:
-    name: Publish release
-    if: startsWith(github.ref, 'refs/tags/')
+  testpypi:
+    name: Publish TestPyPI release
+    if: startsWith(github.ref, 'refs/tags/test-v')
     needs:
       - wheel-test
+      - manylinux-wheel
       - sdist
     runs-on: ubuntu-24.04
     permissions:
@@ -115,6 +152,70 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: sdist
+          path: dist
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheel-linux-x64
+          path: dist
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheel-windows-x64
+          path: dist
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheel-macos-x64
+          path: dist
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheel-macos-arm64
+          path: dist
+
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+          repository-url: https://test.pypi.org/legacy/
+          skip-existing: true
+
+  release:
+    name: Publish PyPI release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs:
+      - wheel-test
+      - manylinux-wheel
+      - sdist
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: sdist
+          path: dist
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheel-linux-x64
+          path: dist
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheel-windows-x64
+          path: dist
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheel-macos-x64
+          path: dist
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheel-macos-arm64
           path: dist
 
       - name: Publish to PyPI
