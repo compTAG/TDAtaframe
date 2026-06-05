@@ -4,7 +4,8 @@ requires-python = ">=3.12,<3.14"
 version = "0.6.0"
 description = "A package to handle shape-matching for meshes"
 readme = "README.md"
-authors = [{name="Jack Ruder", email="jackruder@montana.edu"}]
+authors = [{name="Jacob Sriraman", email="jacobsriraman@montana.edu"},
+{name="Jack Ruder", email="jackruder@montana.edu"}]
 dependencies = [
     "networkx>=3.4.2,<4.0.0",
     "numpy>=2.0.0",
