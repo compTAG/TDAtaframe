@@ -32,9 +32,6 @@ jobs:
           - label: linux-x64
             os: ubuntu-24.04
             python-version: "3.13"
-          - label: macos-x64
-            os: macos-15-intel
-            python-version: "3.12"
           - label: macos-arm64
             os: macos-14
             python-version: "3.12"
@@ -166,11 +163,6 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: wheel-macos-x64
-          path: dist
-
-      - uses: actions/download-artifact@v4
-        with:
           name: wheel-macos-arm64
           path: dist
 
@@ -206,11 +198,6 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: wheel-windows-x64
-          path: dist
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: wheel-macos-x64
           path: dist
 
       - uses: actions/download-artifact@v4
