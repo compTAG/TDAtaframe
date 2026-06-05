@@ -18,20 +18,14 @@ env:
   PYTORCH_CPU_INDEX_URL: https://download.pytorch.org/whl/cpu
 
 jobs:
-  wheel-test:
-    name: Wheel install test (${{ matrix.label }}, py${{ matrix.python-version }})
+  native-wheel:
+    name: Build and test native wheel (${{ matrix.label }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
         include:
-          - label: linux-x64
-            os: ubuntu-24.04
-            python-version: "3.12"
-          - label: linux-x64
-            os: ubuntu-24.04
-            python-version: "3.13"
           - label: macos-arm64
             os: macos-14
             python-version: "3.12"
@@ -76,7 +70,6 @@ jobs:
           --torch-index-url "${{ env.PYTORCH_CPU_INDEX_URL }}"
 
       - name: Upload tested wheel
-        if: matrix.python-version == '3.12' && matrix.label != 'linux-x64'
         uses: actions/upload-artifact@v4
         with:
           name: wheel-${{ matrix.label }}
@@ -117,96 +110,3 @@ jobs:
         with:
           name: wheel-linux-x64
           path: wheelhouse/*.whl
-
-  sdist:
-    name: Build sdist
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build sdist
-        uses: PyO3/maturin-action@v1
-        with:
-          command: sdist
-          args: --out dist
-          rust-toolchain: nightly-2025-05-30
-      - name: Upload sdist
-        uses: actions/upload-artifact@v4
-        with:
-          name: sdist
-          path: dist/*.tar.gz
-
-  testpypi:
-    name: Publish TestPyPI release
-    if: startsWith(github.ref, 'refs/tags/test-v')
-    needs:
-      - wheel-test
-      - manylinux-wheel
-      - sdist
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: sdist
-          path: dist
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: wheel-linux-x64
-          path: dist
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: wheel-windows-x64
-          path: dist
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: wheel-macos-arm64
-          path: dist
-
-      - name: Publish to TestPyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          user: __token__
-          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
-          repository-url: https://test.pypi.org/legacy/
-          skip-existing: true
-
-  release:
-    name: Publish PyPI release
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs:
-      - wheel-test
-      - manylinux-wheel
-      - sdist
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: sdist
-          path: dist
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: wheel-linux-x64
-          path: dist
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: wheel-windows-x64
-          path: dist
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: wheel-macos-arm64
-          path: dist
-
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          user: __token__
-          password: ${{ secrets.PYPI_API_TOKEN }}
