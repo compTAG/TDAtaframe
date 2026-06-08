@@ -2,7 +2,7 @@ import numpy as np
 import polars as pl
 import pytest
 
-from tdataframe.building import build_descriptor_entries
+from tdataframe.building import build_descriptor_database
 from tdataframe.params import EctArgs, WeightedComplexInfo
 
 
@@ -44,7 +44,7 @@ def build_octahedron(
     return vertices, faces, non_uniform if weighted else uniform
 
 
-def test_build_descriptor_entries_for_ect() -> None:
+def test_build_descriptor_database_for_ect() -> None:
     vertices, triangles, _ = build_octahedron(False, 2.0, 1.0, 3.0)
     df = pl.DataFrame(
         {
@@ -57,7 +57,7 @@ def test_build_descriptor_entries_for_ect() -> None:
         }
     )
 
-    out = build_descriptor_entries(
+    out = build_descriptor_database(
         df,
         descriptor="ect",
         ect_args=EctArgs(directions=16, steps=12),
@@ -69,7 +69,7 @@ def test_build_descriptor_entries_for_ect() -> None:
     assert len(out.get_column("descriptor")[0]) == 16 * 12
 
 
-def test_build_descriptor_entries_for_wect() -> None:
+def test_build_descriptor_database_for_wect() -> None:
     vertices, triangles, normals = build_octahedron(True, 2.0, 1.0, 3.0)
     df = pl.DataFrame(
         {
@@ -85,7 +85,7 @@ def test_build_descriptor_entries_for_wect() -> None:
         }
     )
 
-    out = build_descriptor_entries(
+    out = build_descriptor_database(
         df,
         descriptor="wect",
         ect_args=EctArgs(directions=16, steps=12),
@@ -102,11 +102,11 @@ def test_build_descriptor_entries_for_wect() -> None:
     assert len(out.get_column("descriptor")[0]) == 16 * 12
 
 
-def test_build_descriptor_entries_requires_wci_for_wect() -> None:
+def test_build_descriptor_database_requires_wci_for_wect() -> None:
     df = pl.DataFrame({"ID": ["a"], "simplices": [{"vertices": [], "triangles": []}]})
 
     with pytest.raises(ValueError, match="wci is required"):
-        build_descriptor_entries(
+        build_descriptor_database(
             df,
             descriptor="wect",
             ect_args=EctArgs(directions=16, steps=12),
