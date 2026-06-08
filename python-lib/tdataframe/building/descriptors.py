@@ -11,7 +11,7 @@ from ..params import EctArgs, WeightedComplexInfo
 DescriptorName = Literal["ect", "wect"]
 
 
-def build_descriptor_entries(
+def build_descriptor_database(
     df: pl.DataFrame | pl.LazyFrame,
     *,
     descriptor: DescriptorName,
