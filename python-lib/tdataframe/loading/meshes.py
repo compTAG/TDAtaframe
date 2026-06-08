@@ -17,6 +17,8 @@ def interpolate_vertex_normals(
     """Compute normal vectors for triangles by averaging vertex normals."""
     t_normals = []
     for triangle in triangles:
+        # OBJ files may provide per-vertex normals; WECT expects one weight per
+        # simplex, so we collapse them to one face-level vector here.
         # Retrieve the vertex normals of the face
         n1 = np.array(normals[triangle[0]])
         n2 = np.array(normals[triangle[1]])
@@ -81,6 +83,8 @@ class MeshLoader(Loader):
         """
         d = {
             "simplices": {
+                # The field names here are part of the de facto public schema
+                # consumed by the query helpers and tests.
                 "vertices": [],
                 "triangles": [],
             },
@@ -101,6 +105,8 @@ class WeightedFaceMeshLoader(Loader):
     def __init__(self) -> None:
         """Initialize the loader."""
         super().__init__()
+        # `provided_weights=[2]` means callers are supplying only 2-simplex
+        # weights; vertex and edge weights can be interpolated later if needed.
         self.wci = WeightedComplexInfo(
             simplices="simplices", weights="weights", provided_weights=[2]
         )
@@ -130,6 +136,8 @@ class WeightedFaceMeshLoader(Loader):
                 "triangles": [],
             },
             "weights": {
+                # Surface-mesh weighting currently uses face normals as the
+                # canonical weight payload in the Python loaders.
                 "normals": [],
             },
             "ID": [],
@@ -176,6 +184,8 @@ class WeightedObjLoader(WeightedFaceMeshLoader):
         if len(vertices) == len(normals):
             normals = interpolate_vertex_normals(normals, triangles)
             if self.magnitude:
+                # Some workflows use only normal magnitude as a scalar face
+                # weight, so this path drops the direction information.
                 normals = np.abs(normals)
         else:
             if self.magnitude:
@@ -183,6 +193,8 @@ class WeightedObjLoader(WeightedFaceMeshLoader):
                     len(triangles), dtype=np.float32
                 )  # default to unit magnitude
             else:
+                # When OBJ data does not ship normals, recover them from mesh
+                # geometry so vector-valued weighting remains possible.
                 normals = calculate_normals(vertices, triangles)  # calc unit norms
 
         return [vertices, triangles, normals]
@@ -198,6 +210,8 @@ class StlLoader(MeshLoader):
         triangles as indices, and ones for face normals.
         """
         mesh = trimesh.load_mesh(file)
+        # STL ingestion is currently unweighted; all faces receive unit weight
+        # if the caller later converts the mesh into a weighted complex.
         vertices = np.array(mesh.vertices, dtype=np.float64)
         triangles = np.array(mesh.faces, dtype=np.uint32)
         return [vertices, triangles, np.ones(len(triangles), dtype=np.float32)]

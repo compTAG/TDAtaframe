@@ -1,3 +1,11 @@
+// Torch implementation of the Euler Characteristic Transform (ECT) and
+// Weighted Euler Characteristic Transform (WECT).
+//
+// The high-level idea is:
+// - project every vertex onto a bank of directions
+// - convert projection heights into bucket indices
+// - accumulate the signed simplex contributions into those buckets
+// - cumulative-sum over height to recover the transform value at each step
 use std::any::Any;
 
 use crate::{
@@ -11,6 +19,7 @@ use tch::{kind::Element, Device, Kind, Tensor};
 
 #[derive(Debug)]
 pub struct ECTParams {
+    // `dirs` is shaped [num_directions, embedded_dimension].
     pub dirs: Tensor,
     pub num_heights: i64,
 }
@@ -32,6 +41,8 @@ impl ECTParams {
         device: Device,
         kind: tch::Kind,
     ) -> Self {
+        // Direction sampling is centralized here so callers can cache one
+        // parameter block per embedded dimension and numeric dtype.
         let dirs = sample_dirs(num_dirs, embedded_dimension, device, kind);
         Self::from_dirs(dirs, num_heghts)
     }
@@ -164,6 +175,8 @@ fn vertex_indices(params: &ECTParams, vertex_coords: &Tensor) -> Tensor {
     let max_height = v_norms.max();
 
     let v_heights: tch::Tensor = vertex_coords.matmul(&params.dirs.transpose(0, 1));
+    // Heights are normalized from [-max_height, max_height] into discrete bins
+    // so every direction shares the same filtration grid.
     let v_indices: tch::Tensor = ((&params.num_heights - 1 as i64) * (&max_height + v_heights)
         / (2.0 as f64 * &max_height))
         .ceil()
@@ -172,6 +185,7 @@ fn vertex_indices(params: &ECTParams, vertex_coords: &Tensor) -> Tensor {
 }
 
 fn ect(complex: &TensorComplex, tx: Option<Tensor>, params: &ECTParams) -> Tensor {
+    // ECT is a special case of WECT where every simplex contributes unit weight.
     let wc = complex.to_weighted_ones(complex.get_vertices().device());
     wect(&wc, tx, params)
 }
@@ -180,6 +194,8 @@ fn wect(complex: &WeightedTensorComplex, tx: Option<Tensor>, params: &ECTParams)
     let h = params.num_heights as i64;
 
     fn expand_tensor(t: &Tensor, d: i64) -> Tensor {
+        // Duplicate one weight vector across all directions so scatter-add can
+        // accumulate every direction in one batched tensor operation.
         t.unsqueeze(0).expand(&[d, -1], false) // HACK: don't know what implicit does
     }
 
@@ -202,6 +218,8 @@ fn wect(complex: &WeightedTensorComplex, tx: Option<Tensor>, params: &ECTParams)
     for dim in 1..=complex.size() {
         let simplex_tensor = &complex.get_simplices_dim(dim);
         let simplex_weights = complex.get_weights_dim(dim);
+        // Alternating signs implement the Euler-characteristic sum over
+        // simplex dimensions.
         let expnd_simplex_weights = (-1.0f64).powi(dim as i32) * expand_tensor(simplex_weights, d);
 
         let v_pair_indices = Tensor::zeros(
@@ -221,6 +239,8 @@ fn wect(complex: &WeightedTensorComplex, tx: Option<Tensor>, params: &ECTParams)
             v_pair_indices.get(i).copy_(&indexed_values);
         }
 
+        // A simplex appears in the filtration when its last vertex appears, so
+        // we use the maximum vertex bucket among its incident vertices.
         let simplex_indices = v_pair_indices.amax(&[1], false);
 
         diff_wect =
@@ -232,11 +252,14 @@ fn wect(complex: &WeightedTensorComplex, tx: Option<Tensor>, params: &ECTParams)
 }
 
 fn sample2d(num_dirs: i64, device: Device, kind: tch::Kind) -> Tensor {
+    // Uniform angular sampling on the unit circle.
     let t = Tensor::linspace(0.0, 6.283185, num_dirs, (kind, device));
     Tensor::stack(&[t.cos(), t.sin()], 1)
 }
 
 fn sample3d(num_dirs: i64, device: Device, kind: tch::Kind) -> Tensor {
+    // Approximate sphere coverage using evenly spaced z-values plus a full
+    // sweep in theta. This is simple rather than perfectly uniform.
     let _phi = (1.0 + 5.0f64.sqrt()) / 2.0;
     let z = Tensor::linspace(
         1.0 - 1.0 / num_dirs as f64,
@@ -256,6 +279,7 @@ fn sample_dirs(num_dirs: i64, dim: i64, device: Device, kind: tch::Kind) -> Tens
     match dim {
         2 => sample2d(num_dirs, device, kind),
         3 => sample3d(num_dirs, device, kind),
+        // The rest of the code assumes explicit direction generators.
         _ => panic!("Invalid dimension, no implementation for >3"),
     }
 }

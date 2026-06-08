@@ -1,3 +1,10 @@
+// Rigid pre-alignment utilities.
+//
+// The general strategy is:
+// 1. compute simplex barycenters in the alignment dimension
+// 2. optionally subsample those barycenters for a stable/cheaper SVD
+// 3. use the right singular vectors as the canonical orientation basis
+// 4. flip axes so the weighted centroid points into a consistent orthant
 use std::fmt::Debug;
 
 use faer::mat::Mat;
@@ -53,6 +60,8 @@ where
         eps: Option<f64>,
         copies: bool,
     ) -> Vec<Self::Output> {
+        // Alignment is driven by a single simplex dimension chosen by the
+        // caller, typically faces for surface meshes.
         let (simplices, weights) = self.get_pair_dim(align_dim);
         compute_maps_svd_copies(
             &self.get_vertices().view(),
@@ -91,6 +100,8 @@ pub fn compute_barycenters<F: Float + FromPrimitive + Debug>(
 ) -> Array2<F> {
     let mut barycenters = Array2::<F>::zeros((simplices.shape()[0], vertices.shape()[1]));
     for (i, simplex) in simplices.outer_iter().enumerate() {
+        // Each simplex row stores vertex indices. We materialize the indexed
+        // vertex coordinates and average them to get one representative point.
         let indices: Vec<usize> = simplex.to_vec().into_iter().map(|i| i as usize).collect();
         let barycenter = vertices
             .select(Axis(0), &indices)
@@ -112,6 +123,8 @@ where
 {
     let n_points = points.shape()[0];
     if n_points < points.shape()[1] {
+        // Degenerate inputs cannot support a meaningful SVD basis; returning an
+        // identity matrix gives callers a no-op transform instead.
         return Mat::<F>::identity(points.shape()[1], points.shape()[1]);
     }
     let mut n_subsample = (n_points as f32 * subsample_ratio) // HACK: possible precision loss converting usize to f32
@@ -124,6 +137,8 @@ where
     let mut indices: Vec<usize> = (0..n_points).collect();
     indices.shuffle(&mut thread_rng());
     let subsample_indices = &indices[0..n_subsample];
+    // The returned matrix owns its data because faer's SVD consumes a matrix
+    // view with a lifetime independent of the original ndarray slice.
     let subsample_points = points.select(Axis(0), subsample_indices);
     let submat: MatRef<F> = IntoFaer::into_faer(subsample_points.view());
     submat.to_owned()
@@ -157,6 +172,8 @@ where
 {
     let weight_col = col::from_slice(weights);
 
+    // The normalization keeps the offset scale tied to the average point-cloud
+    // radius, which makes `eps` thresholds more interpretable across shapes.
     let d: f64 = (points.shape().0.as_() * compute_point_cloud_norm_factor(&points)).into();
     let wcenter = (weight_col.transpose() * points) / d;
 
@@ -183,6 +200,9 @@ pub fn compute_copies<'a, F>(tx: MatRef<'a, F>) -> Vec<Array2<F>>
 where
     F: 'a + Float + SimpleEntity,
 {
+    // Today the ambiguity resolution is hard-coded for 3D sign flips. That
+    // matches the current mesh workflows, but it is the main place to revisit
+    // for higher-dimensional support.
     let iden = Array2::<F>::eye(3);
     let tx = IntoNdarray::into_ndarray(tx);
     let xpi = array![
@@ -237,6 +257,8 @@ where
     let vtref = vt.as_ref();
 
     if copies {
+        // Force all symmetry-equivalent orientations when the caller wants a
+        // full orbit of transforms for downstream comparison.
         compute_copies(vtref)
     } else {
         match eps {
@@ -244,9 +266,13 @@ where
                 let w_offset =
                     vtref * weighted_centroid_offset(bary_mat, simplex_weights).transpose();
                 if w_offset.norm_l2().into() < eps {
+                    // If the weighted centroid is too close to the origin, the
+                    // heuristic sign-fix is unstable, so expose all copies.
                     compute_copies(vtref)
                 } else {
                     let mut tx = IntoNdarray::into_ndarray(vtref).into_owned();
+                    // Otherwise choose a single orientation by flipping axes so
+                    // the weighted centroid lands in the positive orthant.
                     tx = compute_heur_fix(w_offset).dot(&tx);
                     vec![tx]
                 }
@@ -292,5 +318,6 @@ where
 
     let w_offset = vtref * weighted_centroid_offset(bary_mat, simplex_weights).transpose();
     let tx = IntoNdarray::into_ndarray(vtref).into_owned();
+    // The single-map path always applies the heuristic orthant fix.
     compute_heur_fix(w_offset).dot(&tx)
 }

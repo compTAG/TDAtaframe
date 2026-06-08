@@ -1,3 +1,6 @@
+// Tensor-backed complex representations used by the tch/Torch ECT backend.
+// These types mirror the ndarray-based complexes but keep every component on
+// the same device so the WECT accumulation loop can stay inside Torch ops.
 use crate::complex::{
     Complex, SimplexList, SimplicialComplex, Weighted, WeightedSimplicialComplex,
 };
@@ -46,6 +49,8 @@ impl WeightedSimplicialComplex<BTensor, BTensor, BTensor> {
         V: tch::kind::Element,
         W: tch::kind::Element,
     {
+        // Conversion happens once per Polars row, after any interpolation and
+        // pre-alignment choices have already been made in ndarray land.
         let dim = complex.size();
 
         let (vertices, vertex_weights) = complex.get_vertices_weights();
@@ -62,6 +67,8 @@ impl WeightedSimplicialComplex<BTensor, BTensor, BTensor> {
             let (s, w) = complex.get_pair_dim(k);
             let casted_simplices = s.as_ref().unwrap().mapv(|x| x as i64);
 
+            // Torch index tensors are always int64, so simplex indices are
+            // widened here before moving to the target device.
             let simplices_t = array2_to_tensor(&casted_simplices, device); // TODO: do we
                                                                            // manually cast usize to u32 or u64?
             simplices.push(Rc::new(Box::new(simplices_t)));
@@ -137,6 +144,8 @@ impl SimplicialComplex<BTensor, BTensor> {
             (kind, device),
         ))));
         self.get_simplices().iter().for_each(|s| {
+            // The unweighted ECT is implemented as a WECT where every simplex
+            // carries weight 1 in its own dimension.
             // Add the weights for each simplex
             weights.push(Rc::new(Box::new(Tensor::ones(s.size()[0], (kind, device)))));
         });

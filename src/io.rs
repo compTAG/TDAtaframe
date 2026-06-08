@@ -1,3 +1,6 @@
+// Glue code between Polars columnar data and the generic complex types used by
+// the Rust algorithms. The macros here are the main boundary between "DataFrame
+// world" and "typed ndarray/tensor world".
 use std::collections::VecDeque;
 
 use crate::complex_opt::{OptComplex, WeightedOptComplex};
@@ -46,6 +49,8 @@ macro_rules! impl_iter_vert_simp {
                 .amortized_iter()
                 .zip(simplices.amortized_iter())
                 .map(|(v, s)| -> Option<Box<dyn Array>> {
+                    // Each row is decoded independently so plugin expressions
+                    // can stay elementwise from Polars' point of view.
                     let vert_array = v
                         .unwrap()
                         .as_ref()
@@ -116,6 +121,8 @@ macro_rules! impl_iter_vert_simp_weight {
                 .zip(simplices.amortized_iter())
                 .zip(weights.amortized_iter())
                 .map(|((v, s), w)| -> Option<Box<dyn Array>> {
+                    // We keep weights as a plain Vec because the downstream
+                    // mapping code wants random access and scalar arithmetic.
                     let chunked_weights: &ChunkedArray<$float_dtype> =
                         w.as_ref().unwrap().as_ref().$ca_method().unwrap();
 
@@ -212,6 +219,9 @@ macro_rules! impl_iter_complex {
                     let vertices_array: &ListChunked = v.as_ref().unwrap().as_ref().list().unwrap();
                     let vertices = vertices_array.to_ndarray::<$float_dtype>().unwrap();
 
+                    // The struct fields are ordered as vertices, then one field
+                    // per simplex dimension. Missing lower dimensions are
+                    // reconstructed later by `OptComplex::interpolate_missing_down`.
                     let simplices: VecDeque<Array2<usize>> = (1..simplex_series.len())
                         .map(|i| -> PolarsResult<Array2<usize>> {
                             build_usize_ndarray(&simplex_series, i, j, &sdtype)
@@ -291,6 +301,8 @@ macro_rules! impl_iter_weighted_complex {
                 .amortized_iter()
                 .enumerate()
                 .map(|(j, v)| -> Option<Box<dyn Array>> {
+                    // Simplices and weights are decoded in lockstep but are
+                    // still allowed to omit different dimensions.
                     let simplices: VecDeque<Array2<usize>> = (1..simplex_series.len())
                         .map(|i| -> PolarsResult<Array2<usize>> {
                             build_usize_ndarray(&simplex_series, i, j, &sdtype)
@@ -327,6 +339,8 @@ macro_rules! impl_iter_weighted_complex {
                         &pweights,
                     );
 
+                    // The callback owns the policy decision: pure geometry,
+                    // pre-alignment, interpolation, ECT, WECT, and so on.
                     let out = complex_fn(&mut complex);
 
                     let prim = Box::new(PrimitiveArray::<$ty>::from_vec(out));

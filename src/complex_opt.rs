@@ -1,3 +1,6 @@
+// Optional complex variants let callers provide only the simplex dimensions and
+// weight dimensions they already have on disk. Missing lower-dimensional faces
+// are reconstructed on demand before ECT/WECT is computed.
 use crate::complex::{Complex, SimplicialComplex, Weighted, WeightedSimplicialComplex};
 use ndarray::Array2;
 use ndarray::Axis;
@@ -34,6 +37,8 @@ impl<P> OptComplex<P> {
         let mut i = 1; // i tracks the current dimension
         psimps.iter().for_each(|&dim| {
             while i < dim {
+                // Preserve the original dimension numbering so interpolation can
+                // later fill gaps from the next higher dimension down.
                 // fill missing dimensions
                 opt_simplices.push(None);
                 i += 1;
@@ -76,6 +81,9 @@ impl<P, W> WeightedOptComplex<P, W> {
         let mut i = 0;
         pweights.iter().for_each(|&dim| {
             while i < dim {
+                // Weight dimensions are tracked independently from simplex
+                // dimensions because callers may provide, for example, only
+                // face weights and ask us to interpolate vertex weights.
                 opt_weights.push(None);
                 i += 1;
             }
@@ -117,6 +125,8 @@ impl<P: Float, W: Float> Interpolate for WeightedOptComplex<P, W> {
         let mut missing_dims: Vec<usize> = missing_simplices.into_iter().map(|x| x).collect();
         missing_dims.sort();
         missing_dims.into_iter().rev().for_each(|k| {
+            // We interpolate from higher-dimensional cofaces, so descending
+            // order ensures each source dimension exists before it is needed.
             if k == self.size() {
                 panic!("Can't interpolate missing values for dimension k={}: the k+1 dimension simplices and weights are missing", k);
             }
@@ -147,6 +157,8 @@ where
     F: Float,
     W: Float,
 {
+    // Interpolation is local to one dimension: derive all k-faces from the
+    // existing (k+1)-simplices, then average the contributing coface weights.
     let simplices: &Array2<usize> = &complex.get_simplices_dim(k + 1).as_ref().unwrap();
     let weights: &Vec<W> = complex.get_weights_dim(k + 1).as_ref().unwrap();
     let (interp_simplices, interp_weights) =
@@ -154,6 +166,8 @@ where
     if k > 0 {
         complex.set_dim(Some(interp_simplices), Some(interp_weights), k);
     } else if k == 0 {
+        // Vertex weights are stored as a dense vector indexed by vertex id,
+        // so we scatter the interpolated 0-simplices back into that layout.
         // any degenerate vertices will have 0 weight
         let mut vertex_weights = vec![W::zero(); complex.len(0)];
         for i in 0..interp_simplices.shape()[0] {
@@ -194,6 +208,8 @@ fn interpolate_weighted_simplices_down<F: Float>(
         simplex.sort(); // ensure simplex indicies are sorted for hash
         let faces: Vec<Vec<usize>> = get_ordered_faces(&simplex);
 
+        // A face may appear in multiple cofaces; we average those weights so
+        // downstream WECT code sees one weight per unique simplex.
         // for each face, increment its weight from the coface
         faces.into_iter().for_each(|face| {
             if interp_map.contains_key(&face) {
@@ -251,6 +267,8 @@ fn interpolate_down<F>(complex: &mut OptComplex<F>, k: usize)
 where
     F: Float,
 {
+    // The unweighted path mirrors the weighted interpolation logic but only
+    // needs the simplex incidence structure.
     let simplices: &Array2<usize> = &complex.get_simplices_dim(k + 1).as_ref().unwrap();
     let interp_simplices = interpolate_simplices_down::<F>(&simplices);
     if k > 0 {

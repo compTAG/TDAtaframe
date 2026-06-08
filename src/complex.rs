@@ -1,6 +1,16 @@
+// Core simplicial-complex abstractions shared by the Polars-facing and
+// tensor-facing implementations.
+//
+// Dimension conventions used throughout this crate:
+// - dimension 0 refers to vertices
+// - dimension 1 refers to edges
+// - the `simplices` vector stores only dimensions >= 1, so callers convert
+//   between a mathematical dimension `k` and storage index `k - 1`
 use ndarray::{Array2, ArrayView2};
 
 pub trait SimplexList {
+    // These lightweight adapters let the same complex traits work with ndarray
+    // values, optional ndarray values, and tensor-backed wrappers.
     fn shape(&self) -> Vec<usize>;
     fn len(&self) -> usize;
     fn dim(&self) -> usize;
@@ -129,6 +139,8 @@ pub trait Weighted: Complex {
 
 #[derive(Debug)]
 pub struct SimplicialComplex<V, S> {
+    // Vertices are stored separately from higher-dimensional simplices because
+    // the Polars input schema already models them that way.
     pub vertices: V,
     pub simplices: Vec<S>,
 }
@@ -180,6 +192,8 @@ where
 
     fn get_simplices_dim(&self, dim: usize) -> &S {
         if dim == 0 {
+            // Vertices live in `self.vertices`; callers should use
+            // `get_vertices` for dimension 0.
             panic!("Can't use get_simplices_dim for dimension 0");
         }
         &self.simplices.get(dim - 1).unwrap()
@@ -200,6 +214,8 @@ where
 
 #[derive(Debug)]
 pub struct WeightedSimplicialComplex<V, S, W> {
+    // Weight index `k` corresponds to simplex dimension `k`, so weights[0]
+    // stores vertex weights and weights[k] stores k-simplex weights.
     pub structure: SimplicialComplex<V, S>,
     pub weights: Vec<W>,
 }
@@ -319,6 +335,7 @@ pub type WeightedArrayComplex = WeightedSimplicialComplex<Array2<f32>, Array2<us
 
 //TODO: testing
 fn test_new_cplex() {
+    // Smoke test scaffold for the generic weighted complex representation.
     let vertices: Vec<Vec<f32>> = vec![
         vec![0.0, 0.0],
         vec![1.0, 0.0],

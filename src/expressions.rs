@@ -1,3 +1,6 @@
+// Polars plugin entry points. These functions are the thin runtime layer that
+// decodes Series inputs, dispatches to the ndarray/tensor algorithms, and
+// returns flat list columns back to Python.
 use std::collections::HashMap;
 
 use crate::complex::{Complex, Weighted};
@@ -28,6 +31,8 @@ fn same_output_type(input_fields: &[Field]) -> PolarsResult<Field> {
 
 #[polars_expr(output_type_func=same_output_type)]
 pub fn barycenters(inputs: &[Series]) -> PolarsResult<Series> {
+    // Input layout: one row per object, where each row holds a list of
+    // vertices and a list of simplices in a parallel column.
     iter_vert_simp!(&inputs[0], &inputs[1], |va, sa| {
         compute_barycenters(va, sa).into_raw_vec()
     })
@@ -72,6 +77,8 @@ struct MapsSvdCopyArgs {
 /// generating rotated + reflected copies of the Vt matrix.
 #[polars_expr(output_type_func=same_output_type)] // TODO: when unflattened, need to change output
 pub fn maps_svd_copies(inputs: &[Series], kwargs: MapsSvdCopyArgs) -> PolarsResult<Series> {
+    // The copies variant returns all candidate transforms flattened into a
+    // single list; Python reshapes it back into `[num_copies, dim, dim]`.
     iter_vert_simp_weight_f32(&inputs[0], &inputs[1], &inputs[2], |va, sa, w| {
         let maps: Vec<Array2<f32>> = compute_maps_svd_copies(
             // TODO: unhardcode f32
@@ -96,6 +103,7 @@ pub fn maps_svd_copies(inputs: &[Series], kwargs: MapsSvdCopyArgs) -> PolarsResu
 fn struct_use_weights(input_fields: &[Field]) -> PolarsResult<Field> {
     let field = &input_fields[1];
     match field.dtype() {
+        // WECT-like outputs share the scalar dtype of the weight payload.
         DataType::Struct(fields) => Ok(fields[0].clone()), // use type of vertex weights
         _ => unreachable!(),
     }
@@ -104,6 +112,7 @@ fn struct_use_weights(input_fields: &[Field]) -> PolarsResult<Field> {
 fn struct_use_verts(input_fields: &[Field]) -> PolarsResult<Field> {
     let field = &input_fields[0];
     match field.dtype() {
+        // ECT outputs share the scalar dtype of the vertex coordinates.
         DataType::Struct(fields) => Ok(fields[0].clone()), // use type of vertices
         _ => unreachable!(),
     }
@@ -151,6 +160,8 @@ pub fn premapped_copy_wect(
         &inputs[1],
         kwargs.provided_weights.clone(),
         |complex| {
+            // Callers may load only top-dimensional simplices plus top-level
+            // weights, so we reconstruct any omitted lower dimensions first.
             complex.interpolate_missing_down();
             let pre_rots = complex.premap_copy(
                 kwargs.align_dimension,
@@ -164,6 +175,8 @@ pub fn premapped_copy_wect(
             let embedded_dimension = complex.get_vertices().shape()[1] as i64;
 
             if !ep_per_dim.contains_key(&embedded_dimension) {
+                // ECT parameters are cached per embedded dimension so mixed 2D
+                // and 3D datasets can share one plugin invocation.
                 ep_per_dim.insert(
                     embedded_dimension,
                     ECTParams::new(
@@ -260,6 +273,8 @@ pub fn premapped_wect(inputs: &[Series], kwargs: PremappedWectArgs) -> PolarsRes
             let tensor_complex = WeightedTensorComplex::from(&complex, device);
 
             let tx = array2_to_tensor(&pre_rot, device);
+            // The transform is computed in ndarray space, then applied on the
+            // tensor side so the WECT accumulation stays on one device.
             let wect = tensor_complex.pre_rot_wect(ep, tx);
             tensor_to_flat(&wect, kind)
         }

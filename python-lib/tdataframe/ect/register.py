@@ -7,6 +7,8 @@ from polars.type_aliases import IntoExpr
 from tdataframe._torch import ensure_torch_loaded
 
 lib = Path(__file__).parent.parent
+# Loading torch up front makes sure the native plugin can resolve libtorch when
+# Polars imports the Rust extension from a separate shared object.
 ensure_torch_loaded()
 
 
@@ -24,6 +26,8 @@ def pre_align_copy_wect(
     eps: Optional[float] = None,
     copies: bool,
 ):
+    # The registered function names here must stay in sync with the Rust
+    # `#[polars_expr]` exports in `src/expressions.rs`.
     return register_plugin_function(
         args=[simplices, weights],
         plugin_path=lib,

@@ -1,3 +1,9 @@
+// Crate layout:
+// - `io` rebuilds typed complexes from Polars list/struct columns.
+// - `complex` and `complex_opt` hold the generic simplicial-complex models.
+// - `complex_mapping` computes rigid pre-alignment transforms.
+// - `complex_tensor` and `tensorwect` bridge the complexes into tch/Torch for ECT/WECT.
+// - `expressions` exposes the Rust implementation as Polars plugin functions.
 mod complex;
 pub mod complex_mapping;
 mod complex_opt;
@@ -14,11 +20,15 @@ use pyo3_polars::PolarsAllocator;
 
 #[pymodule]
 fn _internal(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    // `_internal` exists primarily so the Python package can expose the native
+    // extension version and give Polars a loadable plugin module.
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     Ok(())
 }
 
 #[global_allocator]
+// Polars recommends its allocator for plugin-heavy workloads; using it here
+// keeps the Rust extension aligned with the host Polars process.
 static ALLOC: PolarsAllocator = PolarsAllocator::new();
 
 #[cfg(test)]
@@ -36,6 +46,8 @@ mod tests {
 
     impl Octahedron {
         fn new(weighted: bool, x: f32, y: f32, z: f32) -> Octahedron {
+            // The test helper builds an axis-aligned octahedron so the expected
+            // barycenters and SVD basis are easy to reason about by inspection.
             let vertices = array![
                 [x, 0., 0.],
                 [-x, 0., 0.],

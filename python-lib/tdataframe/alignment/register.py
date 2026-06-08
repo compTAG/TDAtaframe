@@ -15,6 +15,8 @@ def barycenters(
     vertices: IntoExpr,
     simplices: IntoExpr,
 ) -> pl.Expr:
+    # Alignment helpers are also Polars plugin functions, even when they do not
+    # involve the Torch backend directly.
     return register_plugin_function(
         args=[vertices, simplices],
         plugin_path=lib,
@@ -34,6 +36,8 @@ def maps_svd_copies(
     eps: Optional[float] = None,
     copies: bool,
 ):
+    # This exposes the ambiguity-preserving mapping path used when one object
+    # may admit several equally valid rigid alignments.
     return register_plugin_function(
         args=[vertices, simplices, weights],
         plugin_path=lib,

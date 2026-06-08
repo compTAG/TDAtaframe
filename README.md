@@ -1,6 +1,14 @@
 # TDAtaframe
 TDA brought to dataframes.
 
+## Documentation
+
+Repo-level docs live in [docs/README.md](docs/README.md).
+
+- [Architecture](docs/architecture.md)
+- [Data Model](docs/data-model.md)
+- [Development Guide](docs/development.md)
+
 # Install
 TDAtaframe uses the libtorch libraries provided by the Python `torch` package.
 You do not need to install libtorch system-wide.

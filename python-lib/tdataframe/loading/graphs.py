@@ -27,6 +27,8 @@ class GraphLoader(Loader):
         """
         d = {
             "simplices": {
+                # The Rust plugin expects one struct column whose fields are
+                # ordered by simplex dimension, starting with vertices.
                 "vertices": [],
                 "edges": [],
             },
@@ -95,6 +97,9 @@ class GraphMlLoader(GraphLoader):
                 for i in range(len(line) - 1):
                     _v0, v1 = line[i], line[i + 1]
                     if i == 0:  # v0 is first point
+                        # Intermediate polyline vertices are appended to the
+                        # vertex table so the geometric embedding is preserved
+                        # when the graph is treated as a simplicial complex.
                         # Add second vertex to the list of vertices
                         vertices.append(list(v1))
                         polylines.append([node_indices[u], len(vertices) - 1])
@@ -115,6 +120,8 @@ class GraphMlLoader(GraphLoader):
                     node_indices[v],
                 ])
 
+        # The returned arrays feed directly into `GraphLoader.load_complexes`,
+        # which serializes them into the `simplices` struct column.
         vertices = np.array(vertices, dtype=np.float32)
         polylines = np.array(
             polylines,

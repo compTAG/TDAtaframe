@@ -1,1 +1,9 @@
-from . import ect as ect, params as params, loading as loading, alignment as alignment
+# The top-level package re-exports the user-facing namespaces that matter for
+# notebook and application code. The Rust plugin itself lives in `_internal`.
+from . import (
+    alignment as alignment,
+    ect as ect,
+    loading as loading,
+    params as params,
+    retrieval as retrieval,
+)

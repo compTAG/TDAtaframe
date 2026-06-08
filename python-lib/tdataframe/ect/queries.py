@@ -58,6 +58,7 @@ def premapped_copy_wects(
     )  # output column of (n * d * d) flattened array of flattened matrices
 
     # Reshape the maps
+    # Each row may contain several WECTs, one per admissible pre-alignment.
     wects = unflatten_to_matrix(
         wects, ea.steps * ea.directions
     )  # now (n)-list of num_height * num_direction flattened matrices
@@ -95,6 +96,8 @@ def premapped_wects(
         subsample_max=ma.subsample_max,
     )
 
+    # The single-map path stays flat because the Rust plugin already returns
+    # one WECT per input row.
     return wects  # flattened wect
 
 
@@ -132,6 +135,8 @@ def with_premapped_copy_wects(
         A lazyframe with the computed WECTs. The rows correspond to each WECT
         given by a transformation on an object.
     """
+    # `df.lazy()` keeps the plugin call composable with the rest of a Polars
+    # query plan instead of materializing early.
     return df.lazy().with_columns(premapped_copy_wects(wci, ma, ea).alias(wname))
 
 
@@ -177,6 +182,8 @@ def wects(
         num_directions=ea.directions,
     )  # output column of (h * d) flattened matrices
 
+    # Consumers can reshape this to `[steps, directions]` with
+    # `unflatten_to_matrix` when they want a matrix view.
     return wects
 
 
@@ -229,6 +236,8 @@ def ects(
         num_directions=ea.directions,
     )
 
+    # ECT uses the same flattened layout as WECT, just without an explicit
+    # weight column.
     return ects
 
 

@@ -30,6 +30,8 @@ pub fn array2_to_tensor<E: tch::kind::Element>(
     array: &Array2<E>,
     device: tch::Device,
 ) -> tch::Tensor {
+    // The ndarray inputs are contiguous when they reach this bridge, so we can
+    // copy directly from the backing slice into a 2D tensor view.
     let ax0 = array.len_of(Axis(0));
     let ax1 = array.len_of(Axis(1));
     let tensor = tch::Tensor::from_slice(array.as_slice().unwrap())
@@ -43,6 +45,8 @@ pub fn tensor_to_array2<O: tch::kind::Element + Default>(
     length: usize,
     width: usize,
 ) -> Array2<O> {
+    // Tensor outputs are always copied back to CPU memory before ndarray
+    // reconstruction so callers do not need to track devices.
     let mut dst = vec![O::default(); length * width];
     tensor
         .to_kind(tch::Kind::Float)
@@ -55,6 +59,8 @@ pub fn tensor_to_flat<O: tch::kind::Element + Default>(
     tensor: &tch::Tensor,
     kind: tch::Kind,
 ) -> Vec<O> {
+    // Polars plugin functions return flat lists, so tensor results are flattened
+    // here and reshaped again on the Python side when needed.
     let num_elems = tensor.size().into_iter().fold(1, |acc, x| acc * x) as usize;
     let mut dst = vec![O::default(); num_elems];
     tensor

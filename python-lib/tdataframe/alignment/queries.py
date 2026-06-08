@@ -136,6 +136,8 @@ def maps_svd_copies(
     )
 
     # Reshape the maps
+    # The Rust side returns one long flat list containing every copy; this
+    # helper restores the natural `[num_copies, dim * dim]` grouping.
     maps = unflatten_to_matrix(
         maps, vdim * vdim
     )  # now (n)-list of d * d flattened matrices
